@@ -50,8 +50,10 @@
             }
         };
 
-        // --- CLOUDINARY ---
-        window.openCloudinaryWidget = (inputId) => {
+        // --- CLOUDINARY (REMOVED INPUT DEPENDENCY) ---
+        let lastUploadedImg = ""; // Dito natin ise-save ang URL temporarily
+
+        window.openCloudinaryWidget = () => {
             cloudinary.openUploadWidget({
                 cloudName: 'ddcjkf3ez',
                 uploadPreset: 'nyxen_upload',
@@ -60,8 +62,8 @@
                 multiple: false
             }, (error, result) => {
                 if (!error && result && result.event === "success") {
-                    document.getElementById(inputId).value = result.info.secure_url;
-                    alert("📸 Image Ready!");
+                    lastUploadedImg = result.info.secure_url;
+                    alert("📸 Image Ready: Automatic na itong isasama sa pag-save!");
                 }
             });
         };
@@ -71,20 +73,21 @@
             const name = document.getElementById('p-name').value.trim();
             const price = document.getElementById('p-price').value;
             const qty = document.getElementById('p-qty').value;
-            const img = document.getElementById('p-img').value;
             const gender = document.getElementById('p-gender').value; 
 
-            // UPDATED VALIDATION: Check gender if empty string
-            if(!name || !price || !qty || !img || !gender) {
-                return alert("Punan lahat, Bro! Huwag kalimutan piliin ang Gender (Male/Female).");
+            // Validation: Check if image was uploaded
+            if(!name || !price || !qty || !gender || !lastUploadedImg) {
+                return alert("Punan lahat, Bro! Siguraduhin na nag-upload ka ng Image at pumili ng Gender.");
             }
 
             try {
                 await setDoc(doc(db, "inventory", name), {
                     name, price: Number(price), qty: Number(qty),
-                    img, gender, clicks: 0, dateAdded: Date.now()
+                    img: lastUploadedImg, // Naka-auto save na dito
+                    gender, clicks: 0, dateAdded: Date.now()
                 });
-                alert("✅ Synced!");
+                alert("✅ Synced: Product live with image!");
+                lastUploadedImg = ""; // Reset for next item
                 document.getElementById('p-form').reset();
             } catch (e) { alert("Error: " + e.message); }
         };
@@ -96,6 +99,7 @@
 
         // --- MARKETING ---
         window.savePromo = async () => {
+            // Gumamit din tayo ng hidden logic para sa promo kung gusto mo, pero for now URL muna ito
             const img = document.getElementById('promo-img').value;
             const end = document.getElementById('promo-end').value;
             const disc = document.getElementById('promo-perc').value;
@@ -191,7 +195,7 @@
         .tab-btn.active { background: var(--amethyst); }
         .card { background: var(--card); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #222; }
         input, select { background: #1a1a1a; border: 1px solid #333; color: white; padding: 12px; margin-bottom: 10px; width: 100%; border-radius: 8px; outline: none; }
-        .btn-upload { background: #333; color: #9b59b2; border: 1px dashed #9b59b2; padding: 10px; border-radius: 8px; width: 100%; margin-bottom: 10px; cursor: pointer; }
+        .btn-upload { background: #333; color: #9b59b2; border: 1px dashed #9b59b2; padding: 10px; border-radius: 8px; width: 100%; margin-bottom: 20px; cursor: pointer; font-weight: bold; }
         .btn-main { background: var(--amethyst); color: white; border: none; padding: 15px; border-radius: 8px; width: 100%; font-weight: bold; cursor: pointer; }
         .table-container { width: 100%; overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; min-width: 450px; font-size: 0.8rem; }
@@ -239,13 +243,16 @@
         <div class="card">
             <h3>Add New Scent</h3>
             <form id="p-form" onsubmit="event.preventDefault()">
-                <input type="text" id="p-name" placeholder="Name">
+                <input type="text" id="p-name" placeholder="Name (e.g. Dior Sauvage)">
                 <div style="display:flex; gap:10px;">
                     <input type="number" id="p-price" placeholder="Price">
                     <input type="number" id="p-qty" placeholder="Qty">
                 </div>
-                <button type="button" class="btn-upload" onclick="openCloudinaryWidget('p-img')">📸 Upload Image</button>
-                <input type="text" id="p-img" placeholder="Image URL">
+                
+                <button type="button" class="btn-upload" onclick="openCloudinaryWidget()">
+                    <i class="fa-solid fa-camera"></i> UPLOAD PERFUME PHOTO
+                </button>
+
                 <select id="p-gender">
                     <option value="" selected disabled>-- SELECT GENDER --</option>
                     <option value="male">MALE</option>
@@ -266,20 +273,11 @@
     </div>
 
     <div id="orders-tab" class="tab-content" style="display:none;">
-        <div class="card">
-            <div class="table-container">
-                <table>
-                    <thead><tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody id="order-list"></tbody>
-                </table>
-            </div>
         </div>
-    </div>
 
     <div id="promo-tab" class="tab-content" style="display:none;">
         <div class="card">
             <h3>Marketing Campaign</h3>
-            <button type="button" class="btn-upload" onclick="openCloudinaryWidget('promo-img')">🖼 Upload Promo Banner</button>
             <input type="text" id="promo-img" placeholder="Banner URL">
             <input type="datetime-local" id="promo-end">
             <input type="number" id="promo-perc" placeholder="Discount %">
