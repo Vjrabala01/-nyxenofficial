@@ -25,7 +25,7 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // --- CUSTOM PROFESSIONAL NOTIFICATION ---
+        // --- PROFESSIONAL NOTIFICATIONS ---
         window.showNotify = (msg, type = "success") => {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
@@ -47,6 +47,7 @@
 
         window.handleLogout = () => signOut(auth);
 
+        // --- DELETE LOGIC ---
         window.deleteProduct = async (name) => {
             if (confirm(`Confirm deletion of ${name}?`)) {
                 try {
@@ -56,6 +57,7 @@
             }
         };
 
+        // --- AUTO-IMAGE UPLOAD ---
         let lastUploadedImg = "";
         window.openCloudinaryWidget = () => {
             cloudinary.openUploadWidget({
@@ -67,12 +69,13 @@
             }, (error, result) => {
                 if (!error && result && result.event === "success") {
                     lastUploadedImg = result.info.secure_url;
-                    document.getElementById('upload-status').innerHTML = "✅ Image Uploaded Successfully";
-                    showNotify("Image linked to product");
+                    document.getElementById('upload-status').innerHTML = "✅ Media Ready for Sync";
+                    showNotify("Image linked successfully");
                 }
             });
         };
 
+        // --- INVENTORY MANAGEMENT ---
         window.saveProduct = async () => {
             const name = document.getElementById('p-name').value.trim();
             const price = document.getElementById('p-price').value;
@@ -80,7 +83,7 @@
             const gender = document.getElementById('p-gender').value; 
 
             if(!name || !price || !qty || !gender || !lastUploadedImg) {
-                return showNotify("Missing Fields: Please complete all requirements", "error");
+                return showNotify("Incomplete Data: Please check all fields", "error");
             }
 
             try {
@@ -100,12 +103,44 @@
             catch (e) { console.error(e); }
         };
 
+        // --- MARKETING & CAMPAIGNS ---
+        window.savePromo = async () => {
+            const img = document.getElementById('promo-img').value;
+            const end = document.getElementById('promo-end').value;
+            const disc = document.getElementById('promo-perc').value;
+            const local = document.getElementById('promo-local').checked;
+            if(!img) return showNotify("Promo banner URL required", "error");
+            try {
+                await setDoc(doc(db, "settings", "flash-sale"), { 
+                    promoImg: img, endTime: end, discount: disc, active: true, localQuick: local 
+                });
+                showNotify("Marketing Campaign Activated");
+            } catch (e) { showNotify(e.message, "error"); }
+        };
+
+        // --- LOGISTICS & ORDERS ---
+        window.updateOrderStatus = async (id, status) => {
+            let updateData = { status: status };
+            if (status === "Shipped") {
+                const track = prompt("Enter J&T Tracking Number:");
+                if(track) updateData.tracking = track;
+            }
+            try {
+                await updateDoc(doc(db, "orders", id), updateData);
+                showNotify(`Order status updated to ${status}`);
+            } catch (e) { showNotify(e.message, "error"); }
+        };
+
+        // --- REAL-TIME DATA STREAM ---
         function loadDashboard() {
+            // Inventory & Clicks
             onSnapshot(collection(db, "inventory"), (snap) => {
                 const list = document.getElementById('product-list');
+                let totalHits = 0;
                 list.innerHTML = "";
                 snap.forEach(d => {
                     const p = d.data();
+                    totalHits += (p.clicks || 0);
                     list.innerHTML += `
                         <tr>
                             <td><img src="${p.img}" class="table-img"></td>
@@ -117,9 +152,38 @@
                                     <button class="qty-btn" onclick="adjustStock('${p.name}', 1)">+</button>
                                 </div>
                             </td>
+                            <td>${p.clicks || 0}</td>
                             <td><button class="del-btn" onclick="deleteProduct('${p.name}')"><i class="fa-solid fa-trash-can"></i></button></td>
                         </tr>`;
                 });
+                document.getElementById('stat-clicks').innerText = `${totalHits} Hits`;
+            });
+
+            // Revenue & Logistics
+            onSnapshot(collection(db, "orders"), (snap) => {
+                const oList = document.getElementById('order-list');
+                oList.innerHTML = "";
+                let rev = 0;
+                snap.forEach(d => {
+                    const o = d.data();
+                    if(o.status === "Delivered") rev += Number(o.totalAmount);
+                    oList.innerHTML += `
+                        <tr>
+                            <td>#${d.id.slice(-5).toUpperCase()}</td>
+                            <td>${o.customerName}</td>
+                            <td>₱${o.totalAmount}</td>
+                            <td><span class="status-pill ${o.status.toLowerCase()}">${o.status}</span></td>
+                            <td>
+                                <select class="status-select" onchange="updateOrderStatus('${d.id}', this.value)">
+                                    <option value="Pending" ${o.status==='Pending'?'selected':''}>Pending</option>
+                                    <option value="Packing" ${o.status==='Packing'?'selected':''}>Packing</option>
+                                    <option value="Shipped" ${o.status==='Shipped'?'selected':''}>Shipped</option>
+                                    <option value="Delivered" ${o.status==='Delivered'?'selected':''}>Delivered</option>
+                                </select>
+                            </td>
+                        </tr>`;
+                });
+                document.getElementById('total-rev').innerText = "₱" + rev.toLocaleString();
             });
         }
 
@@ -145,25 +209,35 @@
         .header { border-bottom: 1px solid #222; padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
         h2 { font-weight: 700; letter-spacing: 3px; font-size: 1.1rem; margin: 0; }
         
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .stat-box { background: var(--card); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid #222; }
+        .stat-box small { color: #555; text-transform: uppercase; font-size: 0.65rem; letter-spacing: 1px; }
+        .stat-box h2 { color: var(--amethyst); margin-top: 5px; font-size: 1.2rem; }
+
         .card { background: var(--card); padding: 20px; border-radius: 16px; border: 1px solid #222; margin-bottom: 20px; }
-        h3 { font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; color: var(--amethyst); margin-top: 0; margin-bottom: 20px; }
+        h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1px; color: var(--amethyst); margin-top: 0; margin-bottom: 20px; }
 
-        input, select { background: #1f1f1f; border: 1px solid #333; color: white; padding: 14px; margin-bottom: 12px; width: 100%; border-radius: 10px; font-size: 0.95rem; box-sizing: border-box; }
-        select { font-size: 1rem; font-weight: 600; cursor: pointer; border: 1.5px solid #333; height: 55px; }
-        input:focus, select:focus { border-color: var(--amethyst); outline: none; background: #252525; }
-
+        input, select { background: #1f1f1f; border: 1px solid #333; color: white; padding: 14px; margin-bottom: 12px; width: 100%; border-radius: 10px; font-size: 0.95rem; box-sizing: border-box; outline: none; }
+        select { font-size: 1rem; font-weight: 600; cursor: pointer; height: 55px; border: 1.5px solid #333; }
+        
         .btn-upload { background: transparent; color: var(--amethyst); border: 1.5px dashed var(--amethyst); padding: 15px; border-radius: 10px; width: 100%; margin-bottom: 15px; cursor: pointer; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; }
         .btn-main { background: var(--amethyst); color: white; border: none; padding: 16px; border-radius: 10px; width: 100%; font-weight: 800; cursor: pointer; letter-spacing: 1px; transition: 0.3s; }
 
-        .tab-nav { display: flex; gap: 8px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; background: #1a1a1a; border: 1px solid #333; color: #777; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 700; }
+        .tab-nav { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; }
+        .tab-btn { flex: 1; min-width: 100px; background: #1a1a1a; border: 1px solid #333; color: #777; padding: 12px; border-radius: 10px; cursor: pointer; font-size: 0.75rem; font-weight: 700; }
         .tab-btn.active { background: var(--amethyst); color: #fff; }
 
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { color: #555; text-transform: uppercase; font-size: 0.7rem; padding: 12px; border-bottom: 1px solid #222; text-align: left; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 500px; }
+        th { color: #555; text-transform: uppercase; font-size: 0.65rem; padding: 12px; border-bottom: 1px solid #222; text-align: left; }
         td { padding: 15px 12px; border-bottom: 1px solid #111; }
         .table-img { width: 45px; height: 45px; border-radius: 8px; object-fit: cover; }
         .qty-btn { background: #333; border: none; color: #fff; width: 28px; height: 28px; border-radius: 6px; cursor: pointer; }
+        
+        .status-pill { padding: 4px 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
+        .status-pill.pending { background: #e67e2222; color: #e67e22; }
+        .status-pill.shipped { background: #9b59b222; color: var(--amethyst); }
+        .status-pill.delivered { background: #2ecc7122; color: var(--success); }
+        
         .del-btn { color: #444; background: none; border: none; cursor: pointer; font-size: 1.1rem; }
         .del-btn:hover { color: var(--error); }
         
@@ -191,16 +265,22 @@
         <button onclick="handleLogout()" style="background:none; border:1px solid #333; color:#555; padding:6px 15px; border-radius:8px; cursor:pointer; font-size: 0.7rem; font-weight:bold;">DISCONNECT</button>
     </div>
 
+    <div class="stats-grid">
+        <div class="stat-box"><small>Total Revenue</small><h2 id="total-rev">₱0</h2></div>
+        <div class="stat-box"><small>Engagement</small><h2 id="stat-clicks">0 Hits</h2></div>
+    </div>
+
     <div class="tab-nav">
         <button class="tab-btn active" onclick="showTab('inventory-tab', this)">INVENTORY</button>
         <button class="tab-btn" onclick="showTab('orders-tab', this)">LOGISTICS</button>
+        <button class="tab-btn" onclick="showTab('promo-tab', this)">MARKETING</button>
     </div>
 
     <div id="inventory-tab" class="tab-content">
         <div class="card">
             <h3>Product Registration</h3>
             <form id="p-form" onsubmit="event.preventDefault()">
-                <input type="text" id="p-name" placeholder="Product Identity (e.g. Aventus Premium)">
+                <input type="text" id="p-name" placeholder="Product Identity (e.g. Dior Sauvage)">
                 <div style="display:flex; gap:12px;">
                     <input type="number" id="p-price" placeholder="Unit Price">
                     <input type="number" id="p-qty" placeholder="Stock Level">
@@ -224,7 +304,7 @@
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
-                        <tr><th>Media</th><th>Identity</th><th>Quantity</th><th>Action</th></tr>
+                        <tr><th>Media</th><th>Identity</th><th>Quantity</th><th>Hits</th><th>Action</th></tr>
                     </thead>
                     <tbody id="product-list"></tbody>
                 </table>
@@ -233,9 +313,42 @@
     </div>
 
     <div id="orders-tab" class="tab-content" style="display:none;">
+        <div class="card" style="padding: 10px;">
+            <h3>Active Shipment Queue</h3>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Customer</th><th>Total</th><th>Status</th><th>Operation</th></tr>
+                    </thead>
+                    <tbody id="order-list"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="promo-tab" class="tab-content" style="display:none;">
         <div class="card">
-            <h3>Active Logistics Queue</h3>
-            <p style="color:#555; font-size: 0.8rem; text-align: center;">Order tracking and shipment management.</p>
+            <h3>Campaign Management</h3>
+            <label style="font-size: 0.7rem; color: #555;">Banner Media Link:</label>
+            <input type="text" id="promo-img" placeholder="https://i.postimg.cc/banner.jpg">
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div>
+                    <label style="font-size: 0.7rem; color: #555;">Expiry Date:</label>
+                    <input type="datetime-local" id="promo-end">
+                </div>
+                <div>
+                    <label style="font-size: 0.7rem; color: #555;">Discount Value (%):</label>
+                    <input type="number" id="promo-perc" placeholder="20">
+                </div>
+            </div>
+
+            <div style="margin: 15px 0; display: flex; align-items: center; gap: 10px;">
+                <input type="checkbox" id="promo-local" style="width: auto; margin: 0;">
+                <label style="font-size: 0.85rem; color: #ccc;">Enable Regional (Negros) Delivery Notice</label>
+            </div>
+            
+            <button class="btn-main" onclick="savePromo()">ACTIVATE CAMPAIGN</button>
         </div>
     </div>
 
