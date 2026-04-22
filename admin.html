@@ -74,7 +74,10 @@
             const img = document.getElementById('p-img').value;
             const gender = document.getElementById('p-gender').value; 
 
-            if(!name || !price || !qty || !img) return alert("Punan lahat, Bro!");
+            // UPDATED VALIDATION: Check gender if empty string
+            if(!name || !price || !qty || !img || !gender) {
+                return alert("Punan lahat, Bro! Huwag kalimutan piliin ang Gender (Male/Female).");
+            }
 
             try {
                 await setDoc(doc(db, "inventory", name), {
@@ -244,6 +247,7 @@
                 <button type="button" class="btn-upload" onclick="openCloudinaryWidget('p-img')">📸 Upload Image</button>
                 <input type="text" id="p-img" placeholder="Image URL">
                 <select id="p-gender">
+                    <option value="" selected disabled>-- SELECT GENDER --</option>
                     <option value="male">MALE</option>
                     <option value="female">FEMALE</option>
                 </select>
