@@ -194,20 +194,26 @@
         .filter-btn.active { border-color: var(--amethyst); color: #fff; background: rgba(155, 89, 182, 0.1); }
 
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; padding: 15px; }
-        .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; overflow: hidden; transition: transform 0.3s ease; }
         
-        /* HOVER ZOOM EFFECT */
-        .portrait-box { aspect-ratio: 2/3; overflow: hidden; background: #000; position: relative; }
+        /* UPDATED PRODUCT CARD & PEEK ZOOM */
+        .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; transition: transform 0.3s ease, z-index 0.3s; }
+        .product-card:hover { z-index: 50; } /* Sinisiguro na nasa ibabaw ang hover */
+
+        .portrait-box { aspect-ratio: 2/3; overflow: visible; background: #000; position: relative; }
         .portrait-box img { 
             width: 100%; 
             height: 100%; 
             object-fit: cover; 
             filter: brightness(0.8);
-            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            border-radius: 4px;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.5s, filter 0.5s;
         }
+
         .product-card:hover .portrait-box img {
-            transform: scale(1.1);
-            filter: brightness(1);
+            transform: scale(1.25); /* Peek zoom size */
+            filter: brightness(1.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(155, 89, 182, 0.3);
+            cursor: pointer;
         }
 
         .product-card.out .portrait-box::after {
@@ -225,9 +231,10 @@
             z-index: 10;
         }
         .product-card.out img { filter: grayscale(1) brightness(0.5); }
+        .product-card.out:hover .portrait-box img { transform: none; box-shadow: none; }
         .product-card.out .inner-promo { display: none; }
         
-        .price-label { position: absolute; top: 10px; right: 0; background: var(--amethyst); padding: 4px 12px; font-weight: bold; z-index: 5; font-size: 0.8rem; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%); }
+        .price-label { position: absolute; top: 10px; right: 0; background: var(--amethyst); padding: 4px 12px; font-weight: bold; z-index: 60; font-size: 0.8rem; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%); }
         .info { padding: 15px; text-align: center; }
         .info h3 { font-size: 0.75rem; letter-spacing: 1px; margin: 0 0 5px; text-transform: uppercase; }
         .add-btn { background: #fff; color: #000; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 0.65rem; letter-spacing: 1px; }
