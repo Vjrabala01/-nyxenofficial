@@ -42,13 +42,18 @@
             currentFilter = gender;
             const btns = document.querySelectorAll('.filter-btn');
             btns.forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
+            // Added simple check for event target
+            if (event) event.target.classList.add('active');
             renderProducts();
         };
 
         onSnapshot(collection(db, "inventory"), (snap) => {
             rawInventory = [];
-            snap.forEach(doc => rawInventory.push(doc.data()));
+            snap.forEach(doc => {
+                const data = doc.data();
+                data.id = doc.id; // Store ID for updates
+                rawInventory.push(data);
+            });
             renderProducts();
         });
 
@@ -66,17 +71,20 @@
 
             filtered.forEach((p, index) => {
                 const isOut = p.qty <= 0;
+                // FIX: Ensure the image URL from Cloudinary (p.img) is valid, otherwise use a placeholder
+                const displayImg = p.img || 'https://via.placeholder.com/300x450?text=NYXEN';
+                
                 grid.innerHTML += `
                     <div class="product-card ${isOut ? 'out' : ''}" style="animation-delay: ${index * 0.05}s">
                         <div class="price-label">₱${p.price}</div>
                         <div class="portrait-box">
-                            <img src="${p.img}" alt="${p.name}" id="img-${p.name.replace(/\s+/g, '')}">
+                            <img src="${displayImg}" alt="${p.name}" id="img-${p.name.replace(/\s+/g, '')}" loading="lazy">
                             <div class="inner-promo">COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING</div>
                         </div>
                         <div class="info">
                             <h3>${p.name}</h3>
                             <p style="font-size:0.6rem; color:#888;">${p.qty > 0 ? p.qty + ' limited pieces left' : 'OUT OF STOCK'}</p>
-                            <button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${p.img}', this)" ${isOut ? 'disabled' : ''}>
+                            <button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${displayImg}', this)" ${isOut ? 'disabled' : ''}>
                                 ${isOut ? 'OUT OF STOCK' : 'ADD TO COLLECTION'}
                             </button>
                         </div>
@@ -124,9 +132,13 @@
                 }, 800);
             }
 
-            window.bag.push({ name, price });
+            window.bag.push({ name, price, img });
             updateCartUI();
-            try { await updateDoc(doc(db, "inventory", name), { clicks: increment(1) }); } catch(e){}
+            try { 
+                // Using name as the document ID as per your current setup
+                await updateDoc(doc(db, "inventory", name), { clicks: increment(1) }); 
+            } catch(e){ console.log("Click tracking error:", e); }
+            
             window.notify(`Added to collections.`);
             if(btn) {
                 btn.innerText = "COLLECTED";
@@ -151,8 +163,13 @@
 
             try {
                 const docRef = await addDoc(collection(db, "orders"), {
-                    customerName: name, phoneNumber: phone, address: addr,
-                    items: window.bag, totalAmount: finalTotal, status: "Pending", date: Date.now()
+                    customerName: name, 
+                    phoneNumber: phone, 
+                    address: addr,
+                    items: window.bag, 
+                    totalAmount: finalTotal, 
+                    status: "Pending", 
+                    date: Date.now()
                 });
                 const orderID = docRef.id.slice(-5).toUpperCase();
                 let msg = `NYXEN PRIVATE COLLECTION ORDER #${orderID}\n\n`;
@@ -173,7 +190,6 @@
         .logo { font-size: 2.5rem; font-weight: 200; letter-spacing: 8px; margin-bottom: 5px; text-shadow: 0 0 20px rgba(155, 89, 182, 0.3); }
         .tagline { color: var(--amethyst); font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; opacity: 0.8; }
         
-        /* Fly Animation */
         .fly-item { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; transition: all 0.8s cubic-bezier(0.42, 0, 0.58, 1); border: 2px solid var(--amethyst); }
 
         .filter-nav { display: flex; justify-content: center; gap: 8px; margin: 20px auto; flex-wrap: wrap; max-width: 95%; }
@@ -183,7 +199,6 @@
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; padding: 15px; }
         .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; overflow: hidden; transition: transform 0.3s ease; }
         
-        /* SOLD OUT STYLES */
         .product-card.out .portrait-box::after {
             content: "SOLD OUT";
             position: absolute;
@@ -293,7 +308,6 @@
             const sMsg = document.getElementById('shipping-msg');
             sMsg.className = ""; 
             
-            // Shipping Banner Color Coding
             if(count === 0) {
                 sMsg.innerText = "COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING";
                 sMsg.classList.add('msg-default');
@@ -315,7 +329,7 @@
                     <div class="qty-controls">
                         <span style="color:var(--amethyst); font-weight:bold; font-size:0.7rem;">₱${item.price}</span>
                         <button class="qty-btn" onclick="removeFromBag(${index})">−</button>
-                        <button class="qty-btn" onclick="addToBag('${item.name}', ${item.price}, '', null)">+</button>
+                        <button class="qty-btn" onclick="addToBag('${item.name}', ${item.price}, '${item.img}', null)">+</button>
                     </div>
                 </div>`;
             });
