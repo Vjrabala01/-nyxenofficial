@@ -31,6 +31,21 @@
         let currentFilter = 'all';
         let rawInventory = [];
 
+        // --- ZOOM FUNCTIONS ---
+        window.openZoom = (imgSrc) => {
+            const overlay = document.getElementById('zoom-overlay');
+            const zoomImg = document.getElementById('zoom-img');
+            zoomImg.src = imgSrc;
+            overlay.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        };
+
+        window.closeZoom = () => {
+            const overlay = document.getElementById('zoom-overlay');
+            overlay.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        };
+
         window.notify = (msg) => {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
@@ -42,7 +57,6 @@
             currentFilter = gender;
             const btns = document.querySelectorAll('.filter-btn');
             btns.forEach(b => b.classList.remove('active'));
-            // Added simple check for event target
             if (event) event.target.classList.add('active');
             renderProducts();
         };
@@ -51,7 +65,7 @@
             rawInventory = [];
             snap.forEach(doc => {
                 const data = doc.data();
-                data.id = doc.id; // Store ID for updates
+                data.id = doc.id; 
                 rawInventory.push(data);
             });
             renderProducts();
@@ -71,14 +85,13 @@
 
             filtered.forEach((p, index) => {
                 const isOut = p.qty <= 0;
-                // FIX: Ensure the image URL from Cloudinary (p.img) is valid, otherwise use a placeholder
                 const displayImg = p.img || 'https://via.placeholder.com/300x450?text=NYXEN';
                 
                 grid.innerHTML += `
                     <div class="product-card ${isOut ? 'out' : ''}" style="animation-delay: ${index * 0.05}s">
                         <div class="price-label">₱${p.price}</div>
                         <div class="portrait-box">
-                            <img src="${displayImg}" alt="${p.name}" id="img-${p.name.replace(/\s+/g, '')}" loading="lazy">
+                            <img src="${displayImg}" alt="${p.name}" id="img-${p.name.replace(/\s+/g, '')}" loading="lazy" onclick="openZoom('${displayImg}')" style="cursor: zoom-in;">
                             <div class="inner-promo">COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING</div>
                         </div>
                         <div class="info">
@@ -135,7 +148,6 @@
             window.bag.push({ name, price, img });
             updateCartUI();
             try { 
-                // Using name as the document ID as per your current setup
                 await updateDoc(doc(db, "inventory", name), { clicks: increment(1) }); 
             } catch(e){ console.log("Click tracking error:", e); }
             
@@ -229,6 +241,12 @@
         .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 10px; }
         .modal { background: #111; padding: 25px 20px; border-radius: 15px; border: 1px solid rgba(155, 89, 182, 0.3); width: 100%; max-width: 400px; text-align: center; max-height: 90vh; overflow-y: auto; }
         
+        /* ZOOM LIGHTBOX STYLE */
+        .zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 9999; cursor: zoom-out; }
+        .zoom-overlay img { max-width: 90%; max-height: 80vh; border-radius: 10px; box-shadow: 0 0 30px rgba(155, 89, 182, 0.5); transform: scale(0.9); transition: transform 0.3s ease; }
+        .zoom-overlay.show { display: flex; }
+        .zoom-overlay.show img { transform: scale(1); }
+
         .checkout-btn { background: var(--amethyst); color: #fff; border: none; padding: 15px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; letter-spacing: 1px; margin-top: 10px; font-size: 0.9rem; }
         
         input, textarea { background: #181818; border: 1px solid #333; color: #fff; width: 100%; padding: 12px; border-radius: 10px; margin-bottom: 8px; outline: none; font-family: inherit; font-size: 0.9rem; }
@@ -265,6 +283,11 @@
             <button class="filter-btn" onclick="setFilter('female')">FEMALE</button>
         </div>
     </header>
+
+    <!-- ZOOM OVERLAY -->
+    <div id="zoom-overlay" class="zoom-overlay" onclick="closeZoom()">
+        <img id="zoom-img" src="" alt="Zoomed Scent">
+    </div>
 
     <div id="cart-overlay" class="overlay">
         <div class="modal">
