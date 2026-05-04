@@ -77,9 +77,9 @@
                         <div class="price-label">₱${p.price}</div>
                         <div class="portrait-box">
                             <img src="${displayImg}" alt="${p.name}" id="img-${p.name.replace(/\s+/g, '')}" loading="lazy">
-                            <div class="inner-promo">COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING</div>
                         </div>
                         <div class="info">
+                            <div class="promo-line">COLLECT 3 BOTTLES FOR FREE SHIPPING</div>
                             <h3>${p.name}</h3>
                             <p style="font-size:0.6rem; color:#888;">${p.qty > 0 ? p.qty + ' limited pieces left' : 'OUT OF STOCK'}</p>
                             <button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${displayImg}', this)" ${isOut ? 'disabled' : ''}>
@@ -194,10 +194,8 @@
         .filter-btn.active { border-color: var(--amethyst); color: #fff; background: rgba(155, 89, 182, 0.1); }
 
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; padding: 15px; }
-        
-        /* UPDATED PRODUCT CARD & PEEK ZOOM */
         .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; transition: transform 0.3s ease, z-index 0.3s; }
-        .product-card:hover { z-index: 50; } /* Sinisiguro na nasa ibabaw ang hover */
+        .product-card:hover { z-index: 50; }
 
         .portrait-box { aspect-ratio: 2/3; overflow: visible; background: #000; position: relative; }
         .portrait-box img { 
@@ -210,7 +208,7 @@
         }
 
         .product-card:hover .portrait-box img {
-            transform: scale(1.25); /* Peek zoom size */
+            transform: scale(1.25);
             filter: brightness(1.1);
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(155, 89, 182, 0.3);
             cursor: pointer;
@@ -231,11 +229,12 @@
             z-index: 10;
         }
         .product-card.out img { filter: grayscale(1) brightness(0.5); }
-        .product-card.out:hover .portrait-box img { transform: none; box-shadow: none; }
-        .product-card.out .inner-promo { display: none; }
-        
+        .product-card.out .promo-line { display: none; }
+
         .price-label { position: absolute; top: 10px; right: 0; background: var(--amethyst); padding: 4px 12px; font-weight: bold; z-index: 60; font-size: 0.8rem; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%); }
+        
         .info { padding: 15px; text-align: center; }
+        .promo-line { font-size: 0.5rem; color: var(--amethyst); letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; }
         .info h3 { font-size: 0.75rem; letter-spacing: 1px; margin: 0 0 5px; text-transform: uppercase; }
         .add-btn { background: #fff; color: #000; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 0.65rem; letter-spacing: 1px; }
         
