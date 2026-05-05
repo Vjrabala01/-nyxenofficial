@@ -56,6 +56,12 @@
             renderProducts();
         });
 
+        // BAGONG FUNCTION: Para sa Restock Request sa Messenger
+        window.requestRestock = (scentName) => {
+            const msg = `Hi NYXEN! I'm interested in "${scentName}". Please let me know when this is back in stock. Thanks!`;
+            window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
+        };
+
         function renderProducts() {
             const grid = document.getElementById('product-grid');
             grid.innerHTML = "";
@@ -72,6 +78,11 @@
                 const isOut = p.qty <= 0;
                 const displayImg = p.img || 'https://via.placeholder.com/300x450?text=NYXEN';
                 
+                // Button Logic: Kung Out of Stock, gawing Request Button
+                const actionBtn = isOut 
+                    ? `<button class="add-btn request-btn" onclick="requestRestock('${p.name}')">REQUEST RESTOCK</button>`
+                    : `<button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${displayImg}', this)">ADD TO COLLECTION</button>`;
+
                 grid.innerHTML += `
                     <div class="product-card ${isOut ? 'out' : ''}" style="animation-delay: ${index * 0.05}s">
                         <div class="price-label">₱${p.price}</div>
@@ -79,12 +90,10 @@
                             <img src="${displayImg}" alt="${p.name}" id="img-${p.name.replace(/\s+/g, '')}" loading="lazy">
                         </div>
                         <div class="info">
-                            <div class="promo-line">COLLECT 3 BOTTLES FOR FREE SHIPPING</div>
+                            <div class="promo-line">${isOut ? 'CURRENTLY UNAVAILABLE' : 'COLLECT 3 BOTTLES FOR FREE SHIPPING'}</div>
                             <h3>${p.name}</h3>
                             <p style="font-size:0.6rem; color:#888;">${p.qty > 0 ? p.qty + ' limited pieces left' : 'OUT OF STOCK'}</p>
-                            <button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${displayImg}', this)" ${isOut ? 'disabled' : ''}>
-                                ${isOut ? 'OUT OF STOCK' : 'ADD TO COLLECTION'}
-                            </button>
+                            ${actionBtn}
                         </div>
                     </div>`;
             });
@@ -194,8 +203,6 @@
         .filter-btn.active { border-color: var(--amethyst); color: #fff; background: rgba(155, 89, 182, 0.1); }
 
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; padding: 15px; }
-        
-        /* Product Card & Hover Logic */
         .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; transition: z-index 0.3s; }
         .product-card:hover { z-index: 50; }
 
@@ -209,7 +216,7 @@
             transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.5s, filter 0.5s;
         }
 
-        /* --- THE MAGIC FIX FOR SMOOTH STICKY PRICE --- */
+        /* --- STICKY PRICE ZOOM LOGIC --- */
         .price-label { 
             position: absolute; 
             top: 10px; 
@@ -217,13 +224,11 @@
             background: var(--amethyst); 
             padding: 4px 12px; 
             font-weight: bold; 
-            z-index: 100; /* Pinaka mataas */
+            z-index: 100; 
             font-size: 0.8rem; 
             clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
-            
-            /* Sinasabayan nito yung cubic-bezier ng image zoom */
             transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            transform-origin: top right; /* Pinapako nito yung point sa upper-right corner */
+            transform-origin: top right;
             pointer-events: none;
         }
 
@@ -235,11 +240,9 @@
         }
 
         .product-card:hover .price-label {
-            /* 1.25 scale matches the image scale. 
-               The negative translateY/translateX handles the gap caused by the image expanding outwards from center. */
             transform: scale(1.25) translateY(-10px) translateX(2px);
         }
-        /* ------------------------------------------- */
+        /* --------------------------------- */
 
         .product-card.out .portrait-box::after {
             content: "SOLD OUT";
@@ -256,12 +259,15 @@
             z-index: 10;
         }
         .product-card.out img { filter: grayscale(1) brightness(0.5); }
-        .product-card.out .promo-line { display: none; }
         
         .info { padding: 15px; text-align: center; }
         .promo-line { font-size: 0.5rem; color: var(--amethyst); letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; }
         .info h3 { font-size: 0.75rem; letter-spacing: 1px; margin: 0 0 5px; text-transform: uppercase; }
         .add-btn { background: #fff; color: #000; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 0.65rem; letter-spacing: 1px; }
+        
+        /* New Style para sa Request Button */
+        .request-btn { background: #333; color: #fff; border: 1px solid var(--amethyst); }
+        .request-btn:hover { background: var(--amethyst); }
         
         .cart-btn { position: fixed; bottom: 20px; right: 20px; background: var(--amethyst); padding: 14px 20px; border-radius: 50px; border: none; color: #fff; font-weight: bold; z-index: 1000; cursor: pointer; box-shadow: 0 8px 25px rgba(155, 89, 182, 0.4); font-size: 0.8rem; transition: transform 0.3s; }
         
