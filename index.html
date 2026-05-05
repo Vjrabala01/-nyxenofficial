@@ -214,6 +214,26 @@
             cursor: pointer;
         }
 
+        /* --- SYNCED PRICE ZOOM --- */
+        .price-label { 
+            position: absolute; 
+            top: 10px; 
+            right: 0; 
+            background: var(--amethyst); 
+            padding: 4px 12px; 
+            font-weight: bold; 
+            z-index: 60; 
+            font-size: 0.8rem; 
+            clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); /* Matches Image Timing */
+        }
+
+        .product-card:hover .price-label {
+            transform: scale(1.1) translateY(-5px) translateX(5px); /* Pops out with image */
+            z-index: 70;
+        }
+        /* ------------------------- */
+
         .product-card.out .portrait-box::after {
             content: "SOLD OUT";
             position: absolute;
@@ -230,8 +250,6 @@
         }
         .product-card.out img { filter: grayscale(1) brightness(0.5); }
         .product-card.out .promo-line { display: none; }
-
-        .price-label { position: absolute; top: 10px; right: 0; background: var(--amethyst); padding: 4px 12px; font-weight: bold; z-index: 60; font-size: 0.8rem; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%); }
         
         .info { padding: 15px; text-align: center; }
         .promo-line { font-size: 0.5rem; color: var(--amethyst); letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; }
