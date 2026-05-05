@@ -194,7 +194,9 @@
         .filter-btn.active { border-color: var(--amethyst); color: #fff; background: rgba(155, 89, 182, 0.1); }
 
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; padding: 15px; }
-        .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; transition: transform 0.3s ease, z-index 0.3s; }
+        
+        /* Product Card & Hover Logic */
+        .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; transition: z-index 0.3s; }
         .product-card:hover { z-index: 50; }
 
         .portrait-box { aspect-ratio: 2/3; overflow: visible; background: #000; position: relative; }
@@ -207,14 +209,7 @@
             transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.5s, filter 0.5s;
         }
 
-        .product-card:hover .portrait-box img {
-            transform: scale(1.25);
-            filter: brightness(1.1);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(155, 89, 182, 0.3);
-            cursor: pointer;
-        }
-
-        /* --- UPDATED STICK-TO-CORNER PRICE ZOOM --- */
+        /* --- THE MAGIC FIX FOR SMOOTH STICKY PRICE --- */
         .price-label { 
             position: absolute; 
             top: 10px; 
@@ -222,22 +217,29 @@
             background: var(--amethyst); 
             padding: 4px 12px; 
             font-weight: bold; 
-            z-index: 60; 
+            z-index: 100; /* Pinaka mataas */
             font-size: 0.8rem; 
             clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
             
-            /* Sync timing with image */
-            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            transform-origin: top right; /* Ensures zoom starts from the corner */
-            pointer-events: none; 
+            /* Sinasabayan nito yung cubic-bezier ng image zoom */
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: top right; /* Pinapako nito yung point sa upper-right corner */
+            pointer-events: none;
+        }
+
+        .product-card:hover .portrait-box img {
+            transform: scale(1.25);
+            filter: brightness(1.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(155, 89, 182, 0.3);
+            cursor: pointer;
         }
 
         .product-card:hover .price-label {
-            /* Matches image scale (1.25) and adjusts for the gap created by zoom */
-            transform: scale(1.25) translateY(-8px) translateX(2px);
-            z-index: 70;
+            /* 1.25 scale matches the image scale. 
+               The negative translateY/translateX handles the gap caused by the image expanding outwards from center. */
+            transform: scale(1.25) translateY(-10px) translateX(2px);
         }
-        /* ----------------------------------------- */
+        /* ------------------------------------------- */
 
         .product-card.out .portrait-box::after {
             content: "SOLD OUT";
