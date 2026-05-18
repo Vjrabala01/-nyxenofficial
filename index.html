@@ -38,7 +38,7 @@
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
+            setTimeout(() => toast.classList.remove('show'), 4000);
         };
 
         window.setFilter = (gender) => {
@@ -194,7 +194,7 @@
             document.getElementById('download-banner').style.display = 'none';
         };
 
-        // FIXED: Explicitly attach PWA download logic to window scope to survive module compilation
+        // FIXED: Core PWA Engine with explicit fallback tracking
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -205,17 +205,34 @@
 
         window.triggerPWAInstall = async (event) => {
             if (event) event.preventDefault();
+            
+            // Fallback instruction helper depending on the user's phone device OS
             if (!deferredPrompt) {
-                window.notify("Open this site in Chrome/Safari mobile or click your browser's menu to Install App.");
+                const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+                if (isIOS) {
+                    window.notify("Tap the 'Share' icon below in Safari, then select 'Add to Home Screen' to install.");
+                } else {
+                    window.notify("Tap your mobile browser menu (the 3 dots on top/bottom) and choose 'Install app' or 'Add to Home Screen'.");
+                }
                 return;
             }
+
             deferredPrompt.prompt();
             const { outcome } = await deferredPrompt.userChoice;
             if (outcome === 'accepted') {
-                console.log('App install accepted');
+                console.log('User accepted app install prompt.');
             }
             deferredPrompt = null;
         };
+
+        // Automatic service worker registration to satisfy browser rules instantly
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => console.log('ServiceWorker registered cleanly.', reg.scope))
+                    .catch(err => console.log('ServiceWorker registration skipped/failed.', err));
+            });
+        }
     </script>
 
     <style>
