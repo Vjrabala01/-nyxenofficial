@@ -194,7 +194,7 @@
             document.getElementById('download-banner').style.display = 'none';
         };
 
-        // FIXED: Core PWA Engine with explicit fallback tracking
+        // FIXED: Smart PWA logic to handle core installation blocks within Facebook Messenger
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -206,13 +206,22 @@
         window.triggerPWAInstall = async (event) => {
             if (event) event.preventDefault();
             
-            // Fallback instruction helper depending on the user's phone device OS
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+            const isMessenger = (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1);
+
+            // Kung ang customer ay nasa loob ng Messenger Webview
+            if (isMessenger) {
+                document.getElementById('messenger-guide-overlay').style.display = 'flex';
+                return;
+            }
+            
+            // Fallback instruction helper kung wala pang prompt but standard mobile browser
             if (!deferredPrompt) {
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 if (isIOS) {
                     window.notify("Tap the 'Share' icon below in Safari, then select 'Add to Home Screen' to install.");
                 } else {
-                    window.notify("Tap your mobile browser menu (the 3 dots on top/bottom) and choose 'Install app' or 'Add to Home Screen'.");
+                    window.notify("Tap your mobile browser menu (the 3 dots on top) and choose 'Install app' or 'Add to Home Screen'.");
                 }
                 return;
             }
@@ -225,7 +234,7 @@
             deferredPrompt = null;
         };
 
-        // Automatic service worker registration to satisfy browser rules instantly
+        // Auto Service worker pipeline link
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('/service-worker.js')
@@ -247,6 +256,18 @@
         .download-btn { background: var(--amethyst); color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 0.7rem; transition: 0.2s; cursor: pointer; display: inline-block; }
         .download-close { background: none; border: none; color: #555; cursor: pointer; font-size: 0.9rem; margin-left: 8px; }
         .download-close:hover { color: var(--amethyst); }
+        /* -------------------------------------- */
+
+        /* --- MESSENGER PWA INSTRUCTION OVERLAY --- */
+        .messenger-guide { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
+        .guide-box { background: #111; border: 1px solid #222; border-top: 4px solid var(--amethyst); border-radius: 12px; padding: 25px 20px; width: 100%; max-width: 360px; text-align: center; }
+        .guide-box h4 { margin: 0 0 10px 0; color: #fff; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; }
+        .guide-box p { font-size: 0.8rem; color: #aaa; margin-bottom: 18px; line-height: 1.4; }
+        .guide-steps { text-align: left; background: #181818; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #222; font-size: 0.78rem; color: #ccc; }
+        .guide-steps div { margin-bottom: 10px; display: flex; gap: 8px; align-items: flex-start; }
+        .guide-steps div:last-child { margin-bottom: 0; }
+        .guide-steps i { color: var(--amethyst); margin-top: 2px; }
+        .guide-close-btn { background: var(--amethyst); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; width: 100%; }
         /* -------------------------------------- */
 
         header { text-align: center; padding: 40px 20px 10px; background: linear-gradient(to bottom, #111, #050505); }
@@ -357,6 +378,29 @@
 </head>
 <body>
     <div id="toast">Ready</div>
+
+    <!-- Smart Messenger In-App Popup Guide -->
+    <div id="messenger-guide-overlay" class="messenger-guide">
+        <div class="guide-box">
+            <h4>Messenger Gamit Mo?</h4>
+            <p>Hindi pinapayagan ng Facebook Messenger ang direktang app download sa loob ng app nila. Sundin ang simpleng step na ito para ma-download:</p>
+            <div class="guide-steps">
+                <div>
+                    <i class="fa-solid fa-ellipsis"></i>
+                    <span>I-click ang <strong>3 dots (...)</strong> o <strong>Menu icon</strong> sa kanang bahagi sa itaas ng screen mo ngayon.</span>
+                </div>
+                <div>
+                    <i class="fa-solid fa-compass"></i>
+                    <span>Piliin ang <strong>"Open in Chrome"</strong> o <strong>"Open in Browser / Safari"</strong>.</span>
+                </div>
+                <div>
+                    <i class="fa-solid fa-circle-down"></i>
+                    <span>Pagkabukas ng site, i-click muli ang <strong>GET APP</strong> button para ma-install ito sa phone mo!</span>
+                </div>
+            </div>
+            <button class="guide-close-btn" onclick="document.getElementById('messenger-guide-overlay').style.display='none'">GOT IT / CLOSE</button>
+        </div>
+    </div>
     
     <!-- New Non-Intrusive App Download Banner -->
     <div id="download-banner" class="download-banner">
