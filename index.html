@@ -11,6 +11,9 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <link rel="apple-touch-icon" href="icon.png">
 
+    <!-- FontAwesome for the Mobile Icon inside the Banner -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, doc, getDoc, onSnapshot, collection, addDoc, updateDoc, increment, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -185,6 +188,11 @@
                 window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
             } catch (e) { window.notify("Order failed."); }
         };
+
+        // NEW APP BANNER LOGIC
+        window.closeDownloadBanner = () => {
+            document.getElementById('download-banner').style.display = 'none';
+        };
     </script>
 
     <style>
@@ -192,6 +200,15 @@
         * { box-sizing: border-box; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; overflow-x: hidden; }
         
+        /* --- NEW APP DOWNLOAD BANNER STYLES --- */
+        .download-banner { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid #222; border-left: 4px solid var(--amethyst); padding: 12px 18px; margin: 15px auto 5px auto; width: 95%; max-width: 1200px; border-radius: 8px; font-size: 0.75rem; }
+        .download-content { display: flex; align-items: center; gap: 10px; }
+        .download-content i { color: var(--amethyst); font-size: 1.1rem; }
+        .download-btn { background: var(--amethyst); color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 0.7rem; transition: 0.2s; cursor: pointer; display: inline-block; }
+        .download-close { background: none; border: none; color: #555; cursor: pointer; font-size: 0.9rem; margin-left: 8px; }
+        .download-close:hover { color: var(--amethyst); }
+        /* -------------------------------------- */
+
         header { text-align: center; padding: 40px 20px 10px; background: linear-gradient(to bottom, #111, #050505); }
         .logo { font-size: 2.5rem; font-weight: 200; letter-spacing: 8px; margin-bottom: 5px; text-shadow: 0 0 20px rgba(155, 89, 182, 0.3); }
         .tagline { color: var(--amethyst); font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; opacity: 0.8; }
@@ -301,6 +318,18 @@
 <body>
     <div id="toast">Ready</div>
     
+    <!-- New Non-Intrusive App Download Banner -->
+    <div id="download-banner" class="download-banner">
+        <div class="download-content">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            <span>Experience clean performance. Download the official <strong>NYXEN App</strong>.</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+            <a href="#" class="download-btn">GET APP</a>
+            <button class="download-close" onclick="closeDownloadBanner()"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+    </div>
+
     <header>
         <div class="logo">NYXEN</div>
         <div class="tagline">Premium Inspired Fragrance</div>
