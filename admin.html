@@ -80,8 +80,11 @@
                 return showNotify("Incomplete Data: Check all fields", "error");
             }
 
+            // Create a compound key to prevent overwriting same name with different genders
+            const docKey = `${name}_${gender}`;
+
             try {
-                await setDoc(doc(db, "inventory", name), {
+                await setDoc(doc(db, "inventory", docKey), {
                     name, 
                     price: Number(price), 
                     qty: Number(qty),
@@ -97,15 +100,15 @@
             } catch (e) { showNotify(e.message, "error"); }
         };
 
-        window.adjustStock = async (name, val) => {
-            try { await updateDoc(doc(db, "inventory", name), { qty: increment(val) }); } 
+        window.adjustStock = async (docKey, val) => {
+            try { await updateDoc(doc(db, "inventory", docKey), { qty: increment(val) }); } 
             catch (e) { console.error(e); }
         };
 
-        window.deleteProduct = async (name) => {
-            if (confirm(`Confirm deletion of ${name}?`)) {
+        window.deleteProduct = async (docKey, displayName) => {
+            if (confirm(`Confirm deletion of ${displayName}?`)) {
                 try {
-                    await deleteDoc(doc(db, "inventory", name));
+                    await deleteDoc(doc(db, "inventory", docKey));
                     showNotify("Product removed from database");
                 } catch (e) { showNotify(e.message, "error"); }
             }
@@ -119,6 +122,11 @@
             } catch (e) { showNotify(e.message, "error"); }
         };
 
+        // --- DOWNLOAD APP BANNER CLOSE ---
+        window.closeDownloadBanner = () => {
+            document.getElementById('download-banner').style.display = 'none';
+        };
+
         // --- DASHBOARD DATA ---
         function loadDashboard() {
             // Inventory Stream
@@ -128,6 +136,7 @@
                 list.innerHTML = "";
                 snap.forEach(d => {
                     const p = d.data();
+                    const docKey = d.id; // Target variant key
                     totalHits += (p.clicks || 0);
                     list.innerHTML += `
                         <tr>
@@ -135,13 +144,13 @@
                             <td><div class="scent-name">${p.name}</div><small class="gender-tag">${p.gender}</small></td>
                             <td>
                                 <div class="qty-control">
-                                    <button class="qty-btn" onclick="adjustStock('${p.name}', -1)">-</button>
+                                    <button class="qty-btn" onclick="adjustStock('${docKey}', -1)">-</button>
                                     <span>${p.qty}</span>
-                                    <button class="qty-btn" onclick="adjustStock('${p.name}', 1)">+</button>
+                                    <button class="qty-btn" onclick="adjustStock('${docKey}', 1)">+</button>
                                 </div>
                             </td>
                             <td>${p.clicks || 0}</td>
-                            <td><button class="del-btn" onclick="deleteProduct('${p.name}')"><i class="fa-solid fa-trash-can"></i></button></td>
+                            <td><button class="del-btn" onclick="deleteProduct('${docKey}', '${p.name} (${p.gender})')"><i class="fa-solid fa-trash-can"></i></button></td>
                         </tr>`;
                 });
                 document.getElementById('stat-clicks').innerText = `${totalHits} Hits`;
@@ -187,6 +196,14 @@
         :root { --amethyst: #9b59b2; --bg: #0a0a0a; --card: #141414; --error: #e74c3c; --success: #2ecc71; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
         
+        /* App Download Banner Styles */
+        .download-banner { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid #222; border-left: 4px solid var(--amethyst); padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; }
+        .download-content { display: flex; align-items: center; gap: 12px; }
+        .download-content i { color: var(--amethyst); font-size: 1.2rem; }
+        .download-btn { background: var(--amethyst); color: #fff; border: none; padding: 6px 14px; border-radius: 6px; font-weight: bold; text-decoration: none; font-size: 0.75rem; transition: 0.2s; cursor: pointer; }
+        .download-close { background: none; border: none; color: #555; cursor: pointer; font-size: 1rem; margin-left: 10px; }
+        .download-close:hover { color: var(--error); }
+
         .toast { visibility: hidden; min-width: 280px; background-color: var(--card); color: #fff; text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 10000; top: 30px; left: 50%; transform: translateX(-50%); border: 1px solid #333; transition: 0.3s; font-weight: bold; }
         .toast.show { visibility: visible; }
         .toast.error { border-left: 5px solid var(--error); }
@@ -241,6 +258,18 @@
             <input type="email" id="admin-email" placeholder="Email">
             <input type="password" id="admin-pass" placeholder="Password">
             <button class="btn-main" onclick="handleLogin()">AUTHENTICATE</button>
+        </div>
+    </div>
+
+    <!-- App Download Prompt Banner -->
+    <div id="download-banner" class="download-banner">
+        <div class="download-content">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+            <span>Get the optimized mobile experience. Download the <strong>NYXEN App</strong>.</span>
+        </div>
+        <div style="display: flex; align-items: center;">
+            <a href="#" class="download-btn">DOWNLOAD</a>
+            <button class="download-close" onclick="closeDownloadBanner()"><i class="fa-solid fa-xmark"></i></button>
         </div>
     </div>
 
