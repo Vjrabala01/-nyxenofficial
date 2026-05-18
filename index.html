@@ -193,6 +193,40 @@
         window.closeDownloadBanner = () => {
             document.getElementById('download-banner').style.display = 'none';
         };
+
+        // FIXED: Handles PWA installation trigger natively
+        let deferredPrompt;
+        const downloadBtn = document.getElementById('download-app-btn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Show the banner if it was hidden
+            document.getElementById('download-banner').style.display = 'flex';
+        });
+
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                if (!deferredPrompt) {
+                    window.notify("App installation is already complete or not supported on this browser.");
+                    return;
+                }
+                // Show the native install prompt
+                deferredPrompt.prompt();
+                // Wait for the user to respond to the prompt
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                } else {
+                    console.log('User dismissed the install prompt');
+                }
+                // We've used the prompt, and can't use it again
+                deferredPrompt = null;
+            });
+        }
     </script>
 
     <style>
@@ -325,7 +359,7 @@
             <span>Experience clean performance. Download the official <strong>NYXEN App</strong>.</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-            <a href="#" class="download-btn">GET APP</a>
+            <a href="#" id="download-app-btn" class="download-btn">GET APP</a>
             <button class="download-close" onclick="closeDownloadBanner()"><i class="fa-solid fa-xmark"></i></button>
         </div>
     </div>
