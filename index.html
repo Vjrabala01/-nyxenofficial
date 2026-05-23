@@ -32,7 +32,7 @@
 
         window.bag = [];
         let currentFilter = 'all';
-        let searchQuery = ''; // NEW: Search state
+        let searchQuery = ''; 
         let rawInventory = [];
 
         window.notify = (msg) => {
@@ -50,7 +50,6 @@
             renderProducts();
         };
 
-        // NEW: Search Function
         window.handleSearch = (e) => {
             searchQuery = e.target.value.toLowerCase();
             renderProducts();
@@ -71,7 +70,6 @@
             window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
         };
 
-        // NEW: Combined Filter and Search Logic
         function renderProducts() {
             const grid = document.getElementById('product-grid');
             grid.innerHTML = "";
@@ -202,8 +200,16 @@
             document.getElementById('download-banner').style.display = 'none';
         };
 
+        // FIXED: Check if user is already in App mode (Standalone)
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
+            // Check if already installed/standalone
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+            
+            if (isStandalone) {
+                return; // Do nothing if already an app
+            }
+
             e.preventDefault();
             deferredPrompt = e;
             const banner = document.getElementById('download-banner');
@@ -244,18 +250,24 @@
         * { box-sizing: border-box; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; overflow-x: hidden; padding-bottom: 80px; }
         
-        /* --- NEW STYLES: SEARCH BAR --- */
+        /* --- APP DETECTION HIDER --- */
+        /* This CSS hides the banner automatically if the user has already opened the App */
+        @media all and (display-mode: standalone) {
+            #download-banner, .download-banner {
+                display: none !important;
+            }
+        }
+
         .search-container { max-width: 500px; margin: 15px auto; padding: 0 20px; position: relative; }
         .search-bar { width: 100%; background: #111; border: 1px solid #333; padding: 12px 15px 12px 40px; border-radius: 50px; color: #fff; font-size: 0.85rem; outline: none; transition: border 0.3s; }
         .search-bar:focus { border-color: var(--amethyst); box-shadow: 0 0 10px rgba(155, 89, 182, 0.2); }
         .search-icon { position: absolute; left: 35px; top: 50%; transform: translateY(-50%); color: #555; font-size: 0.9rem; }
 
-        /* --- NEW STYLES: SUPPORT BUTTON --- */
         .support-btn { position: fixed; bottom: 20px; left: 20px; background: #181818; border: 1px solid #333; padding: 12px; border-radius: 50px; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: bold; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.3s; }
         .support-btn i { color: var(--amethyst); font-size: 1rem; }
         .support-btn:hover { border-color: var(--amethyst); transform: translateY(-3px); }
 
-        .download-banner { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid #222; border-left: 4px solid var(--amethyst); padding: 12px 18px; margin: 15px auto 5px auto; width: 95%; max-width: 1200px; border-radius: 8px; font-size: 0.75rem; }
+        .download-banner { display: none; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid #222; border-left: 4px solid var(--amethyst); padding: 12px 18px; margin: 15px auto 5px auto; width: 95%; max-width: 1200px; border-radius: 8px; font-size: 0.75rem; }
         .download-content { display: flex; align-items: center; gap: 10px; }
         .download-content i { color: var(--amethyst); font-size: 1.1rem; }
         .download-btn { background: var(--amethyst); color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 0.7rem; transition: 0.2s; cursor: pointer; display: inline-block; }
@@ -358,7 +370,6 @@
         <div class="logo">NYXEN</div>
         <div class="tagline">Premium Inspired Fragrance</div>
         
-        <!-- NEW: Search Bar UI -->
         <div class="search-container">
             <i class="fa-solid fa-magnifying-glass search-icon"></i>
             <input type="text" class="search-bar" placeholder="Search scent name..." oninput="handleSearch(event)">
@@ -371,7 +382,6 @@
         </div>
     </header>
 
-    <!-- NEW: Customer Support Floating Button -->
     <a href="https://m.me/296084720263105" target="_blank" class="support-btn">
         <i class="fa-brands fa-facebook-messenger"></i>
         <span>SUPPORT</span>
