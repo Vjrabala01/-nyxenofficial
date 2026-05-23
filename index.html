@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NYXEN | Premium Inspired Fragrance</title>
+    <title>NYXEN | Premium Inspired Fragrance</title>    
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#9b59b2">
@@ -32,6 +32,7 @@
 
         window.bag = [];
         let currentFilter = 'all';
+        let searchQuery = ''; // NEW: Search state
         let rawInventory = [];
 
         window.notify = (msg) => {
@@ -49,6 +50,12 @@
             renderProducts();
         };
 
+        // NEW: Search Function
+        window.handleSearch = (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            renderProducts();
+        };
+
         onSnapshot(collection(db, "inventory"), (snap) => {
             rawInventory = [];
             snap.forEach(doc => {
@@ -59,21 +66,24 @@
             renderProducts();
         });
 
-        // BAGONG FUNCTION: Para sa Restock Request sa Messenger
         window.requestRestock = (scentName) => {
             const msg = `Hi NYXEN! I'm interested in "${scentName}". Please let me know when this is back in stock. Thanks!`;
             window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
         };
 
+        // NEW: Combined Filter and Search Logic
         function renderProducts() {
             const grid = document.getElementById('product-grid');
             grid.innerHTML = "";
-            const filtered = currentFilter === 'all' 
-                ? rawInventory 
-                : rawInventory.filter(p => p.gender && p.gender.toLowerCase() === currentFilter.toLowerCase());
+            
+            const filtered = rawInventory.filter(p => {
+                const matchesGender = currentFilter === 'all' || (p.gender && p.gender.toLowerCase() === currentFilter.toLowerCase());
+                const matchesSearch = p.name.toLowerCase().includes(searchQuery);
+                return matchesGender && matchesSearch;
+            });
             
             if (filtered.length === 0) {
-                grid.innerHTML = `<p style="grid-column:1/-1; color:#555; margin-top:50px;">No scents found in this category.</p>`;
+                grid.innerHTML = `<p style="grid-column:1/-1; color:#555; margin-top:50px; text-align:center;">No scents found.</p>`;
                 return;
             }
 
@@ -81,7 +91,6 @@
                 const isOut = p.qty <= 0;
                 const displayImg = p.img || 'https://via.placeholder.com/300x450?text=NYXEN';
                 
-                // Button Logic: Kung Out of Stock, gawing Request Button
                 const actionBtn = isOut 
                     ? `<button class="add-btn request-btn" onclick="requestRestock('${p.name}')">REQUEST RESTOCK</button>`
                     : `<button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${displayImg}', this)">ADD TO COLLECTION</button>`;
@@ -189,12 +198,10 @@
             } catch (e) { window.notify("Order failed."); }
         };
 
-        // NEW APP BANNER LOGIC
         window.closeDownloadBanner = () => {
             document.getElementById('download-banner').style.display = 'none';
         };
 
-        // FIXED: Smart PWA logic to handle core installation blocks within Facebook Messenger
         let deferredPrompt;
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
@@ -205,41 +212,29 @@
 
         window.triggerPWAInstall = async (event) => {
             if (event) event.preventDefault();
-            
             const ua = navigator.userAgent || navigator.vendor || window.opera;
             const isMessenger = (ua.indexOf("FBAN") > -1) || (ua.indexOf("FBAV") > -1);
-
-            // Kung ang customer ay nasa loob ng Messenger Webview
             if (isMessenger) {
                 document.getElementById('messenger-guide-overlay').style.display = 'flex';
                 return;
             }
-            
-            // Fallback instruction helper kung wala pang prompt but standard mobile browser
             if (!deferredPrompt) {
                 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
                 if (isIOS) {
-                    window.notify("Tap the 'Share' icon below in Safari, then select 'Add to Home Screen' to install.");
+                    window.notify("Tap 'Share' in Safari, then 'Add to Home Screen'.");
                 } else {
-                    window.notify("Tap your mobile browser menu (the 3 dots on top) and choose 'Install app' or 'Add to Home Screen'.");
+                    window.notify("Tap menu (3 dots) and choose 'Install app'.");
                 }
                 return;
             }
-
             deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            if (outcome === 'accepted') {
-                console.log('User accepted app install prompt.');
-            }
+            await deferredPrompt.userChoice;
             deferredPrompt = null;
         };
 
-        // Auto Service worker pipeline link
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then(reg => console.log('ServiceWorker registered cleanly.', reg.scope))
-                    .catch(err => console.log('ServiceWorker registration skipped/failed.', err));
+                navigator.serviceWorker.register('/service-worker.js').catch(err => console.log('SW failed', err));
             });
         }
     </script>
@@ -247,28 +242,31 @@
     <style>
         :root { --amethyst: #9b59b2; --bg: #050505; --card: #121212; --orange: #e67e22; --green: #2ecc71; }
         * { box-sizing: border-box; }
-        body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; overflow-x: hidden; }
+        body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; overflow-x: hidden; padding-bottom: 80px; }
         
-        /* --- NEW APP DOWNLOAD BANNER STYLES --- */
+        /* --- NEW STYLES: SEARCH BAR --- */
+        .search-container { max-width: 500px; margin: 15px auto; padding: 0 20px; position: relative; }
+        .search-bar { width: 100%; background: #111; border: 1px solid #333; padding: 12px 15px 12px 40px; border-radius: 50px; color: #fff; font-size: 0.85rem; outline: none; transition: border 0.3s; }
+        .search-bar:focus { border-color: var(--amethyst); box-shadow: 0 0 10px rgba(155, 89, 182, 0.2); }
+        .search-icon { position: absolute; left: 35px; top: 50%; transform: translateY(-50%); color: #555; font-size: 0.9rem; }
+
+        /* --- NEW STYLES: SUPPORT BUTTON --- */
+        .support-btn { position: fixed; bottom: 20px; left: 20px; background: #181818; border: 1px solid #333; padding: 12px; border-radius: 50px; color: #fff; text-decoration: none; display: flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: bold; z-index: 1000; box-shadow: 0 5px 15px rgba(0,0,0,0.5); transition: 0.3s; }
+        .support-btn i { color: var(--amethyst); font-size: 1rem; }
+        .support-btn:hover { border-color: var(--amethyst); transform: translateY(-3px); }
+
         .download-banner { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid #222; border-left: 4px solid var(--amethyst); padding: 12px 18px; margin: 15px auto 5px auto; width: 95%; max-width: 1200px; border-radius: 8px; font-size: 0.75rem; }
         .download-content { display: flex; align-items: center; gap: 10px; }
         .download-content i { color: var(--amethyst); font-size: 1.1rem; }
         .download-btn { background: var(--amethyst); color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 0.7rem; transition: 0.2s; cursor: pointer; display: inline-block; }
         .download-close { background: none; border: none; color: #555; cursor: pointer; font-size: 0.9rem; margin-left: 8px; }
-        .download-close:hover { color: var(--amethyst); }
-        /* -------------------------------------- */
 
-        /* --- MESSENGER PWA INSTRUCTION OVERLAY --- */
         .messenger-guide { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 9999; display: none; align-items: center; justify-content: center; padding: 20px; }
         .guide-box { background: #111; border: 1px solid #222; border-top: 4px solid var(--amethyst); border-radius: 12px; padding: 25px 20px; width: 100%; max-width: 360px; text-align: center; }
-        .guide-box h4 { margin: 0 0 10px 0; color: #fff; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; }
-        .guide-box p { font-size: 0.8rem; color: #aaa; margin-bottom: 18px; line-height: 1.4; }
         .guide-steps { text-align: left; background: #181818; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #222; font-size: 0.78rem; color: #ccc; }
         .guide-steps div { margin-bottom: 10px; display: flex; gap: 8px; align-items: flex-start; }
-        .guide-steps div:last-child { margin-bottom: 0; }
         .guide-steps i { color: var(--amethyst); margin-top: 2px; }
         .guide-close-btn { background: var(--amethyst); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; font-size: 0.8rem; cursor: pointer; width: 100%; }
-        /* -------------------------------------- */
 
         header { text-align: center; padding: 40px 20px 10px; background: linear-gradient(to bottom, #111, #050505); }
         .logo { font-size: 2.5rem; font-weight: 200; letter-spacing: 8px; margin-bottom: 5px; text-shadow: 0 0 20px rgba(155, 89, 182, 0.3); }
@@ -276,76 +274,28 @@
         
         .fly-item { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; transition: all 0.8s cubic-bezier(0.42, 0, 0.58, 1); border: 2px solid var(--amethyst); }
 
-        .filter-nav { display: flex; justify-content: center; gap: 8px; margin: 20px auto; flex-wrap: wrap; max-width: 95%; }
+        .filter-nav { display: flex; justify-content: center; gap: 8px; margin: 10px auto 20px; flex-wrap: wrap; max-width: 95%; }
         .filter-btn { background: none; border: 1px solid #222; color: #555; padding: 8px 12px; border-radius: 5px; font-size: 0.55rem; letter-spacing: 1px; cursor: pointer; transition: 0.3s; font-weight: bold; flex: 1; max-width: 120px; }
         .filter-btn.active { border-color: var(--amethyst); color: #fff; background: rgba(155, 89, 182, 0.1); }
 
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; max-width: 1200px; margin: 0 auto; padding: 15px; }
         .product-card { background: var(--card); border: 1px solid #222; position: relative; border-radius: 4px; transition: z-index 0.3s; }
-        .product-card:hover { z-index: 50; }
-
         .portrait-box { aspect-ratio: 2/3; overflow: visible; background: #000; position: relative; }
-        .portrait-box img { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; 
-            filter: brightness(0.8);
-            border-radius: 4px;
-            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.5s, filter 0.5s;
-        }
+        .portrait-box img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.8); border-radius: 4px; transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.5s, filter 0.5s; }
 
-        /* --- STICKY PRICE ZOOM LOGIC --- */
-        .price-label { 
-            position: absolute; 
-            top: 10px; 
-            right: 0; 
-            background: var(--amethyst); 
-            padding: 4px 12px; 
-            font-weight: bold; 
-            z-index: 100; 
-            font-size: 0.8rem; 
-            clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%);
-            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-            transform-origin: top right;
-            pointer-events: none;
-        }
+        .price-label { position: absolute; top: 10px; right: 0; background: var(--amethyst); padding: 4px 12px; font-weight: bold; z-index: 100; font-size: 0.8rem; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0% 100%); transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: top right; pointer-events: none; }
 
-        .product-card:hover .portrait-box img {
-            transform: scale(1.25);
-            filter: brightness(1.1);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(155, 89, 182, 0.3);
-            cursor: pointer;
-        }
+        .product-card:hover .portrait-box img { transform: scale(1.25); filter: brightness(1.1); box-shadow: 0 20px 40px rgba(0, 0, 0, 0.9), 0 0 20px rgba(155, 89, 182, 0.3); }
+        .product-card:hover .price-label { transform: scale(1.25) translateY(-10px) translateX(2px); }
 
-        .product-card:hover .price-label {
-            transform: scale(1.25) translateY(-10px) translateX(2px);
-        }
-        /* --------------------------------- */
-
-        .product-card.out .portrait-box::after {
-            content: "SOLD OUT";
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 900;
-            font-size: 1.1rem;
-            letter-spacing: 2px;
-            z-index: 10;
-        }
+        .product-card.out .portrait-box::after { content: "SOLD OUT"; position: absolute; inset: 0; background: rgba(0, 0, 0, 0.7); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 1.1rem; letter-spacing: 2px; z-index: 10; }
         .product-card.out img { filter: grayscale(1) brightness(0.5); }
         
         .info { padding: 15px; text-align: center; }
         .promo-line { font-size: 0.5rem; color: var(--amethyst); letter-spacing: 1px; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; }
         .info h3 { font-size: 0.75rem; letter-spacing: 1px; margin: 0 0 5px; text-transform: uppercase; }
         .add-btn { background: #fff; color: #000; border: none; padding: 10px; width: 100%; font-weight: bold; cursor: pointer; margin-top: 8px; font-size: 0.65rem; letter-spacing: 1px; }
-        
-        /* New Style para sa Request Button */
         .request-btn { background: #333; color: #fff; border: 1px solid var(--amethyst); }
-        .request-btn:hover { background: var(--amethyst); }
         
         .cart-btn { position: fixed; bottom: 20px; right: 20px; background: var(--amethyst); padding: 14px 20px; border-radius: 50px; border: none; color: #fff; font-weight: bold; z-index: 1000; cursor: pointer; box-shadow: 0 8px 25px rgba(155, 89, 182, 0.4); font-size: 0.8rem; transition: transform 0.3s; }
         
@@ -383,30 +333,20 @@
     <div id="messenger-guide-overlay" class="messenger-guide">
         <div class="guide-box">
             <h4>Messenger Gamit Mo?</h4>
-            <p>Hindi pinapayagan ng Facebook Messenger ang direktang app download sa loob ng app nila. Sundin ang simpleng step na ito para ma-download:</p>
+            <p>Hindi pinapayagan ng Messenger ang direktang app download. Sundin ito:</p>
             <div class="guide-steps">
-                <div>
-                    <i class="fa-solid fa-ellipsis"></i>
-                    <span>I-click ang <strong>3 dots (...)</strong> o <strong>Menu icon</strong> sa kanang bahagi sa itaas ng screen mo ngayon.</span>
-                </div>
-                <div>
-                    <i class="fa-solid fa-compass"></i>
-                    <span>Piliin ang <strong>"Open in Chrome"</strong> o <strong>"Open in Browser / Safari"</strong>.</span>
-                </div>
-                <div>
-                    <i class="fa-solid fa-circle-down"></i>
-                    <span>Pagkabukas ng site, i-click muli ang <strong>GET APP</strong> button para ma-install ito sa phone mo!</span>
-                </div>
+                <div><i class="fa-solid fa-ellipsis"></i><span>I-click ang <strong>3 dots (...)</strong> sa taas.</span></div>
+                <div><i class="fa-solid fa-compass"></i><span>Piliin ang <strong>"Open in Chrome/Safari"</strong>.</span></div>
+                <div><i class="fa-solid fa-circle-down"></i><span>I-click muli ang <strong>GET APP</strong>!</span></div>
             </div>
-            <button class="guide-close-btn" onclick="document.getElementById('messenger-guide-overlay').style.display='none'">GOT IT / CLOSE</button>
+            <button class="guide-close-btn" onclick="document.getElementById('messenger-guide-overlay').style.display='none'">CLOSE</button>
         </div>
     </div>
     
-    <!-- New Non-Intrusive App Download Banner -->
     <div id="download-banner" class="download-banner">
         <div class="download-content">
             <i class="fa-solid fa-mobile-screen-button"></i>
-            <span>Experience clean performance. Download the official <strong>NYXEN App</strong>.</span>
+            <span>Experience clean performance. Download the <strong>NYXEN App</strong>.</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
             <a href="#" id="download-app-btn" class="download-btn" onclick="window.triggerPWAInstall(event)">GET APP</a>
@@ -417,6 +357,13 @@
     <header>
         <div class="logo">NYXEN</div>
         <div class="tagline">Premium Inspired Fragrance</div>
+        
+        <!-- NEW: Search Bar UI -->
+        <div class="search-container">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input type="text" class="search-bar" placeholder="Search scent name..." oninput="handleSearch(event)">
+        </div>
+
         <div class="filter-nav">
             <button class="filter-btn active" onclick="setFilter('all')">ALL SCENTS</button>
             <button class="filter-btn" onclick="setFilter('male')">MALE</button>
@@ -424,26 +371,25 @@
         </div>
     </header>
 
+    <!-- NEW: Customer Support Floating Button -->
+    <a href="https://m.me/296084720263105" target="_blank" class="support-btn">
+        <i class="fa-brands fa-facebook-messenger"></i>
+        <span>SUPPORT</span>
+    </a>
+
     <div id="cart-overlay" class="overlay">
         <div class="modal">
             <h3 style="color:var(--amethyst); letter-spacing: 2px; margin-top: 0;">MY COLLECTIONS</h3>
             <div id="shipping-msg" class="msg-default">COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING</div>
-            
             <div id="cart-items" style="margin:15px 0; text-align:left; font-size:0.75rem; max-height: 150px; overflow-y: auto;"></div>
-            
             <div id="items-total-ui" style="font-weight:bold; font-size: 0.9rem; text-align: right;">ITEMS: ₱0</div>
-            
             <div class="shipping-breakdown" id="ship-ui" style="display:none; color: #888;">
-                <div class="ship-line">
-                    <span>Shipping Fee:</span> 
-                    <span id="ship-cost" style="font-weight: bold;">₱0</span>
-                </div>
+                <div class="ship-line"><span>Shipping Fee:</span> <span id="ship-cost">₱0</span></div>
                 <div class="ship-line" style="font-size:0.6rem;"><span id="ship-loc">Calculating...</span></div>
                 <div class="ship-line" style="font-size:1.1rem; color:#fff; font-weight:900; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
                     <span>GRAND TOTAL:</span> <span id="grand-total">₱0</span>
                 </div>
             </div>
-
             <br>
             <input type="text" id="c-name" placeholder="Full Name">
             <input type="tel" id="c-phone" placeholder="Phone Number">
@@ -465,7 +411,6 @@
             document.getElementById('cart-count').innerText = count;
             const sMsg = document.getElementById('shipping-msg');
             sMsg.className = ""; 
-            
             if(count === 0) {
                 sMsg.innerText = "COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING";
                 sMsg.classList.add('msg-default');
@@ -476,7 +421,6 @@
                 sMsg.innerText = "FREE SHIPPING UNLOCKED! 🎉";
                 sMsg.classList.add('msg-green'); 
             }
-
             const list = document.getElementById('cart-items'); list.innerHTML = "";
             let itemsTotal = 0; 
             window.bag.forEach((item, index) => {
@@ -492,20 +436,14 @@
                 </div>`;
             });
             document.getElementById('items-total-ui').innerText = "ITEMS: ₱" + itemsTotal;
-
             const addr = document.getElementById('c-addr').value;
             const shipUI = document.getElementById('ship-ui');
             const shipCostElem = document.getElementById('ship-cost');
-
             if (addr.length > 3 && count > 0) {
                 shipUI.style.display = 'block';
                 const res = calculateShipping(addr);
                 shipCostElem.innerText = "₱" + res.fee;
-                if(res.fee === 0) {
-                    shipCostElem.style.color = "var(--green)"; 
-                } else {
-                    shipCostElem.style.color = "var(--orange)"; 
-                }
+                shipCostElem.style.color = res.fee === 0 ? "var(--green)" : "var(--orange)";
                 document.getElementById('ship-loc').innerText = "Detected: " + res.loc;
                 document.getElementById('grand-total').innerText = "₱" + (itemsTotal + res.fee);
             } else { shipUI.style.display = 'none'; }
