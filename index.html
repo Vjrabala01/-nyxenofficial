@@ -95,8 +95,8 @@
                 
                 const actionBtn = isOut 
                     ? `<button class="add-btn request-btn" onclick="requestRestock('${p.name}')">REQUEST RESTOCK</button>`
-                    // Now passing the full product object to addToBag, including its Firebase ID
-                    : `<button class="add-btn" onclick="addToBag(${JSON.stringify(p).replace(/'/g, "\\'")}, this)">ADD TO COLLECTION</button>`;
+                    // CORRECTED: Pass only the product's ID to addToBag
+                    : `<button class="add-btn" onclick="addToBag('${p.id}', this)">ADD TO COLLECTION</button>`;
 
                 grid.innerHTML += `
                     <div class="product-card ${isOut ? 'out' : ''}" style="animation-delay: ${index * 0.05}s">
@@ -124,9 +124,18 @@
             return { fee: 125, loc: "Outside Negros" };
         };
 
-        // Modified: Now accepts the full product object
-        window.addToBag = async (product, btn) => {
-            const { name, price, img, id: productDocKey } = product; // Destructure the product object to get its ID
+        // Modified: Now accepts only the product ID and looks up the full product object
+        window.addToBag = async (productId, btn) => {
+            // Find the full product object from rawInventory using its ID
+            const product = rawInventory.find(p => p.id === productId);
+
+            if (!product) {
+                console.error(`Product with ID ${productId} not found in inventory.`);
+                window.notify(`Error: Product not found.`, 'error');
+                return;
+            }
+
+            const { name, price, img, id: productDocKey } = product; // Destructure the found product object
 
             const imgId = `img-${name.replace(/\s+/g, '')}`;
             const originalImg = document.getElementById(imgId);
@@ -159,11 +168,8 @@
                 }, 800);
             }
 
-            // Check if item is already in bag, if so, just increment qtyToBuy (optional for multiple same item)
-            // For now, let's allow duplicates to simplify the "add to bag" logic.
-            // If you want to group items in the bag and just increment quantity for existing items,
-            // this logic needs to be more complex.
-            window.bag.push({ name, price, img, id: productDocKey, qtyToBuy: 1 }); // Added qtyToBuy
+            // Push the necessary product data including its ID and default quantity
+            window.bag.push({ name, price, img, id: productDocKey, qtyToBuy: 1 });
             updateCartUI();
 
             // Increment click count for this specific product
@@ -178,7 +184,6 @@
             }
         };
         
-        // Modified: The 'item' now contains 'id' (Firebase document ID)
         window.removeFromBag = (index) => {
             window.bag.splice(index, 1);
             updateCartUI();
@@ -204,6 +209,7 @@
                     name: item.name,
                     price: item.price,
                     img: item.img,
+                    qty: item.qtyToBuy, // Include quantity bought in the order item
                     // Add other relevant item details if necessary
                 }));
 
@@ -523,7 +529,8 @@
                     <div class="qty-controls">
                         <span style="color:var(--amethyst); font-weight:bold; font-size:0.7rem;">₱${item.price}</span>
                         <button class="qty-btn" onclick="removeFromBag(${index})">−</button>
-                        <button class="qty-btn" onclick="addToBag(${JSON.stringify(item).replace(/'/g, "\\'")}, null)">+</button>
+                        <!-- CORRECTED: Pass only the product's ID to addToBag when clicked from cart -->
+                        <button class="qty-btn" onclick="addToBag('${item.id}', null)">+</button>
                     </div>
                 </div>`;
             });
