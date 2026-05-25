@@ -35,18 +35,18 @@
         let searchQuery = ''; 
         let rawInventory = [];
 
-        window.notify = (msg) => {
+        window.notify = (msg, type = 'default') => { // Added 'type' parameter
             const toast = document.getElementById('toast');
             toast.innerText = msg;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 4000);
+            toast.className = `toast show ${type}`; // Apply type class
+            setTimeout(() => { toast.className = "toast"; }, 4000); // Clear classes after hide
         };
 
         window.setFilter = (gender) => {
             currentFilter = gender;
             const btns = document.querySelectorAll('.filter-btn');
             btns.forEach(b => b.classList.remove('active'));
-            if (event) event.target.classList.add('active');
+            if (event && event.target) event.target.classList.add('active'); // Added event.target check
             renderProducts();
         };
 
@@ -60,6 +60,10 @@
             snap.forEach(doc => {
                 const data = doc.data();
                 data.id = doc.id; 
+                // Initialize 'purchases' if it doesn't exist
+                if (typeof data.purchases === 'undefined') {
+                    data.purchases = 0;
+                }
                 rawInventory.push(data);
             });
             renderProducts();
@@ -91,7 +95,8 @@
                 
                 const actionBtn = isOut 
                     ? `<button class="add-btn request-btn" onclick="requestRestock('${p.name}')">REQUEST RESTOCK</button>`
-                    : `<button class="add-btn" onclick="addToBag('${p.name}', ${p.price}, '${displayImg}', this)">ADD TO COLLECTION</button>`;
+                    // Now passing the full product object to addToBag, including its Firebase ID
+                    : `<button class="add-btn" onclick="addToBag(${JSON.stringify(p).replace(/'/g, "\\'")}, this)">ADD TO COLLECTION</button>`;
 
                 grid.innerHTML += `
                     <div class="product-card ${isOut ? 'out' : ''}" style="animation-delay: ${index * 0.05}s">
@@ -103,6 +108,8 @@
                             <div class="promo-line">${isOut ? 'CURRENTLY UNAVAILABLE' : 'COLLECT 3 BOTTLES FOR FREE SHIPPING'}</div>
                             <h3>${p.name}</h3>
                             <p style="font-size:0.6rem; color:#888;">${p.qty > 0 ? p.qty + ' limited pieces left' : 'OUT OF STOCK'}</p>
+                            <!-- Display purchases count -->
+                            <p class="purchases-count">${p.purchases || 0} purchases</p>
                             ${actionBtn}
                         </div>
                     </div>`;
@@ -117,7 +124,10 @@
             return { fee: 125, loc: "Outside Negros" };
         };
 
-        window.addToBag = async (name, price, img, btn) => {
+        // Modified: Now accepts the full product object
+        window.addToBag = async (product, btn) => {
+            const { name, price, img, id: productDocKey } = product; // Destructure the product object to get its ID
+
             const imgId = `img-${name.replace(/\s+/g, '')}`;
             const originalImg = document.getElementById(imgId);
             const cartBtn = document.querySelector('.cart-btn');
@@ -149,10 +159,16 @@
                 }, 800);
             }
 
-            window.bag.push({ name, price, img });
+            // Check if item is already in bag, if so, just increment qtyToBuy (optional for multiple same item)
+            // For now, let's allow duplicates to simplify the "add to bag" logic.
+            // If you want to group items in the bag and just increment quantity for existing items,
+            // this logic needs to be more complex.
+            window.bag.push({ name, price, img, id: productDocKey, qtyToBuy: 1 }); // Added qtyToBuy
             updateCartUI();
+
+            // Increment click count for this specific product
             try { 
-                await updateDoc(doc(db, "inventory", name), { clicks: increment(1) }); 
+                await updateDoc(doc(db, "inventory", productDocKey), { clicks: increment(1) }); 
             } catch(e){ console.log("Click tracking error:", e); }
             
             window.notify(`Added to collections.`);
@@ -161,39 +177,92 @@
                 setTimeout(() => btn.innerText = "ADD TO COLLECTION", 1000);
             }
         };
-
+        
+        // Modified: The 'item' now contains 'id' (Firebase document ID)
         window.removeFromBag = (index) => {
             window.bag.splice(index, 1);
             updateCartUI();
         };
 
         window.submitOrder = async () => {
-            const name = document.getElementById('c-name').value;
-            const phone = document.getElementById('c-phone').value;
-            const addr = document.getElementById('c-addr').value;
-            if(!name || !phone || !addr || window.bag.length === 0) return window.notify("Complete details required.");
+            const customerName = document.getElementById('c-name').value;
+            const phoneNumber = document.getElementById('c-phone').value;
+            const address = document.getElementById('c-addr').value;
+
+            if(!customerName || !phoneNumber || !address || window.bag.length === 0) {
+                return window.notify("Complete details required.", 'error'); // Notify with error type
+            }
             
             const itemsTotal = window.bag.reduce((s, i) => s + i.price, 0);
-            const shipDetails = calculateShipping(addr);
+            const shipDetails = calculateShipping(address);
             const finalTotal = itemsTotal + shipDetails.fee;
 
             try {
+                // 1. Prepare items for order (optional: group by product ID if multiple of same item)
+                const orderItems = window.bag.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    price: item.price,
+                    img: item.img,
+                    // Add other relevant item details if necessary
+                }));
+
+                // 2. Create the order document in Firestore
                 const docRef = await addDoc(collection(db, "orders"), {
-                    customerName: name, 
-                    phoneNumber: phone, 
-                    address: addr,
-                    items: window.bag, 
-                    totalAmount: finalTotal, 
-                    status: "Pending", 
+                    customerName,
+                    phoneNumber,
+                    address,
+                    items: orderItems, // Use the prepared order items
+                    totalAmount: finalTotal,
+                    status: "Pending",
                     date: Date.now()
                 });
+                
+                // 3. Decrement stock and increment purchase count for each item in the bag
+                const updatePromises = window.bag.map(async (item) => {
+                    const productDocRef = doc(db, "inventory", item.id); // Use the stored item.id
+                    
+                    const productSnap = await getDoc(productDocRef);
+                    if (productSnap.exists()) {
+                        const currentQty = productSnap.data().qty;
+                        if (currentQty >= item.qtyToBuy) { // Check if enough stock for the quantity in bag
+                            await updateDoc(productDocRef, {
+                                qty: increment(-item.qtyToBuy), // Decrement by the quantity bought (default 1)
+                                purchases: increment(item.qtyToBuy) // Increment purchase count
+                            });
+                            console.log(`Stock for ${item.name} decremented, purchases incremented.`);
+                        } else {
+                            console.warn(`Insufficient stock for ${item.name}. Order might be problematic for this item.`);
+                            window.notify(`Warning: Not enough stock for ${item.name}.`, 'warning'); // Notify with warning type
+                            // You might want more robust error handling here, like cancelling the order or
+                            // marking the item as 'backordered' or preventing checkout if stock is low.
+                        }
+                    } else {
+                        console.error(`Product with ID ${item.id} not found in inventory. Cannot update stock.`);
+                        window.notify(`Error: Product ${item.name} not found in inventory.`, 'error'); // Notify with error type
+                    }
+                });
+
+                await Promise.all(updatePromises); // Wait for all stock and purchase updates to complete
+
+                // Prepare Messenger message
                 const orderID = docRef.id.slice(-5).toUpperCase();
                 let msg = `NYXEN PRIVATE COLLECTION ORDER #${orderID}\n\n`;
                 window.bag.forEach(i => msg += `• ${i.name}\n`);
                 msg += `\nSubtotal: ₱${itemsTotal}\nShipping: ₱${shipDetails.fee} (${shipDetails.loc})\nTOTAL: ₱${finalTotal}`;
-                msg += `\n\nRecipient: ${name}\nPhone: ${phone}\nAddress: ${addr}`;
+                msg += `\n\nRecipient: ${customerName}\nPhone: ${phoneNumber}\nAddress: ${address}`;
+                
+                // Clear the bag and update UI after successful order and stock/purchase update
+                window.bag = [];
+                updateCartUI();
+                
+                window.notify("Order placed and stock updated!", 'success'); // Notify with success type
                 window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
-            } catch (e) { window.notify("Order failed."); }
+
+            } catch (e) {
+                console.error("Order submission error:", e);
+                window.notify("Order failed. Please try again.", 'error'); // Notify with error type
+            }
         };
 
         window.closeDownloadBanner = () => {
@@ -246,7 +315,7 @@
     </script>
 
     <style>
-        :root { --amethyst: #9b59b2; --bg: #050505; --card: #121212; --orange: #e67e22; --green: #2ecc71; }
+        :root { --amethyst: #9b59b2; --bg: #050505; --card: #121212; --orange: #e67e22; --green: #2ecc71; --error: #e74c3c; --success: #2ecc71; } /* Added error and success to root */
         * { box-sizing: border-box; }
         body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; margin: 0; padding: 0; user-select: none; overflow-x: hidden; padding-bottom: 80px; }
         
@@ -331,15 +400,28 @@
 
         #toast { position: fixed; top: -100px; left: 50%; transform: translateX(-50%); background: #111; border: 1px solid var(--amethyst); color: #fff; padding: 10px 20px; border-radius: 50px; z-index: 5000; transition: 0.5s; font-size: 0.75rem; }
         #toast.show { top: 20px; }
+        #toast.error { border-left: 5px solid var(--error); } /* Specific error style */
+        #toast.warning { border-left: 5px solid var(--orange); } /* Specific warning style */
+        #toast.success { border-left: 5px solid var(--success); } /* Specific success style */
+
 
         @media (max-width: 400px) {
             .product-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 10px; }
             .logo { font-size: 2rem; }
         }
+
+        /* New CSS for displaying purchases count */
+        .purchases-count {
+            font-size: 0.65rem;
+            color: #ccc; /* Lighter color for aesthetic */
+            margin-top: 5px;
+            margin-bottom: 5px; /* Adjust spacing as needed */
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
-    <div id="toast">Ready</div>
+    <div id="toast" class="toast">Ready</div> <!-- Added 'toast' class for consistent styling -->
 
     <!-- Smart Messenger In-App Popup Guide -->
     <div id="messenger-guide-overlay" class="messenger-guide">
@@ -441,7 +523,7 @@
                     <div class="qty-controls">
                         <span style="color:var(--amethyst); font-weight:bold; font-size:0.7rem;">₱${item.price}</span>
                         <button class="qty-btn" onclick="removeFromBag(${index})">−</button>
-                        <button class="qty-btn" onclick="addToBag('${item.name}', ${item.price}, '${item.img}', null)">+</button>
+                        <button class="qty-btn" onclick="addToBag(${JSON.stringify(item).replace(/'/g, "\\'")}, null)">+</button>
                     </div>
                 </div>`;
             });
