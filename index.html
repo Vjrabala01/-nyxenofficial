@@ -1,6 +1,4 @@
---- START OF FILE text/plain ---
-
-<!DOCTYPE html>
+!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -166,16 +164,20 @@
                     flyer.classList.add('fly-item');
                     flyer.style.top = rect.top + 'px';
                     flyer.style.left = rect.left + 'px';
-                    flyer.style.width = rect.width + 'px';
-                    flyer.style.height = rect.height + 'px';
+                    flyer.style.width = '30px'; // Set a fixed smaller size for the flyer
+                    flyer.style.height = '30px';
+                    flyer.style.borderRadius = '50%'; // Make it round if needed
+                    flyer.style.objectFit = 'cover';
+                    flyer.style.transition = 'all 0.8s cubic-bezier(0.42, 0, 0.58, 1)';
+                    flyer.style.zIndex = '9999';
+                    flyer.style.position = 'fixed'; // Ensure it's fixed
                     document.body.appendChild(flyer);
 
                     requestAnimationFrame(() => {
-                        flyer.style.top = (cartRect.top + 10) + 'px';
-                        flyer.style.left = (cartRect.left + 10) + 'px';
-                        flyer.style.width = '30px';
-                        flyer.style.height = '30px';
+                        flyer.style.top = (cartRect.top + cartRect.height / 2 - 15) + 'px'; // Center with cart button vertically
+                        flyer.style.left = (cartRect.left + cartRect.width / 2 - 15) + 'px'; // Center with cart button horizontally
                         flyer.style.opacity = '0.3';
+                        flyer.style.transform = 'scale(0.1)'; // Shrink it
                     });
 
                     setTimeout(() => {
@@ -210,7 +212,8 @@
                     item.price = originalProduct.price * item.qtyToBuy;
                 } else {
                     console.warn("Original product not found for price recalculation.");
-                    item.price = item.price - (item.price / (item.qtyToBuy + 1)); // Fallback approximation
+                    // Fallback to approximate if original product data is somehow missing
+                    item.price = item.price - (item.price / (item.qtyToBuy + 1));
                 }
             } else {
                 window.bag.splice(index, 1);
@@ -227,21 +230,19 @@
                 return window.notify("Complete details required.", 'error');
             }
             
-            // Recalculate itemsTotal based on current bag state (item.price already reflects qty)
             const itemsTotal = window.bag.reduce((s, i) => s + i.price, 0);
             const shipDetails = calculateShipping(address);
             const finalTotal = itemsTotal + shipDetails.fee;
 
             try {
-                // Prepare items for order (now includes unitPrice and totalItemPrice)
                 const orderItems = window.bag.map(item => {
                     const originalProduct = rawInventory.find(p => p.id === item.id);
                     return {
                         id: item.id,
                         name: item.name,
-                        unitPrice: originalProduct ? originalProduct.price : item.price, // Store the unit price
+                        unitPrice: originalProduct ? originalProduct.price : (item.price / item.qtyToBuy),
                         qty: item.qtyToBuy,
-                        totalItemPrice: item.price, // This is the total for this specific item quantity
+                        totalItemPrice: item.price,
                         img: item.img,
                     };
                 });
@@ -264,8 +265,8 @@
                         const currentQty = productSnap.data().qty;
                         if (currentQty >= item.qtyToBuy) {
                             await updateDoc(productDocRef, {
-                                qty: increment(-item.qtyToBuy), // Decrement by the quantity bought
-                                purchases: increment(item.qtyToBuy) // Increment purchase count by quantity bought
+                                qty: increment(-item.qtyToBuy),
+                                purchases: increment(item.qtyToBuy)
                             });
                             console.log(`Stock for ${item.name} decremented by ${item.qtyToBuy}, purchases incremented.`);
                         } else {
@@ -282,15 +283,17 @@
 
                 const orderID = docRef.id.slice(-5).toUpperCase();
                 let msg = `NYXEN PRIVATE COLLECTION ORDER #${orderID}\n\n`;
-                window.bag.forEach(i => msg += `• ${i.name} (x${i.qtyToBuy})\n`); // Include quantity in Messenger message
-                msg += `\nSubtotal: ₱${itemsTotal}\nShipping: ₱${shipDetails.fee} (${shipDetails.loc})\nTOTAL: ₱${finalTotal}`;
+                window.bag.forEach(i => msg += `• ${i.name} (x${i.qtyToBuy})\n`);
+                msg += `\nSubtotal: ₱${itemsTotal.toFixed(2)}\nShipping: ₱${shipDetails.fee.toFixed(2)} (${shipDetails.loc})\nTOTAL: ₱${finalTotal.toFixed(2)}`;
                 msg += `\n\nRecipient: ${customerName}\nPhone: ${phoneNumber}\nAddress: ${address}`;
-                msg += `\n\n--- PLEASE SEND THIS MESSAGE TO CONFIRM YOUR ORDER ---`; // Clarify action
+                msg += `\n\n--- PLEASE SEND THIS MESSAGE TO CONFIRM YOUR ORDER ---`;
 
                 window.bag = [];
                 updateCartUI();
                 
-                window.notify("Order submitted! Please confirm in Messenger.", 'success'); // Updated message
+                window.notify("Order submitted! Redirecting to Messenger...", 'success');
+                
+                // Direct redirection to Messenger, same behavior as support button
                 window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
 
             } catch (e) {
@@ -383,7 +386,7 @@
         .logo { font-size: 2.5rem; font-weight: 200; letter-spacing: 8px; margin-bottom: 5px; text-shadow: 0 0 20px rgba(155, 89, 182, 0.3); }
         .tagline { color: var(--amethyst); font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; opacity: 0.8; }
         
-        .fly-item { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; transition: all 0.8s cubic-bezier(0.42, 0, 0.58, 1); border: 2px solid var(--amethyst); }
+        .fly-item { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; } /* Removed inline transition for better CSS control */
 
         .filter-nav { display: flex; justify-content: center; gap: 8px; margin: 10px auto 20px; flex-wrap: wrap; max-width: 95%; }
         .filter-btn { background: none; border: 1px solid #222; color: #555; padding: 8px 12px; border-radius: 5px; font-size: 0.55rem; letter-spacing: 1px; cursor: pointer; transition: 0.3s; font-weight: bold; flex: 1; max-width: 120px; }
@@ -505,19 +508,19 @@
             </p>
             <div id="shipping-msg" class="msg-default">COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING</div>
             <div id="cart-items" style="margin:15px 0; text-align:left; font-size:0.75rem; max-height: 150px; overflow-y: auto;"></div>
-            <div id="items-total-ui" style="font-weight:bold; font-size: 0.9rem; text-align: right;">ITEMS: ₱0</div>
+            <div id="items-total-ui" style="font-weight:bold; font-size: 0.9rem; text-align: right;">ITEMS: ₱0.00</div>
             <div class="shipping-breakdown" id="ship-ui" style="display:none; color: #888;">
-                <div class="ship-line"><span>Shipping Fee:</span> <span id="ship-cost">₱0</span></div>
+                <div class="ship-line"><span>Shipping Fee:</span> <span id="ship-cost">₱0.00</span></div>
                 <div class="ship-line" style="font-size:0.6rem;"><span id="ship-loc">Calculating...</span></div>
                 <div class="ship-line" style="font-size:1.1rem; color:#fff; font-weight:900; margin-top:8px; border-top:1px solid #333; padding-top:8px;">
-                    <span>GRAND TOTAL:</span> <span id="grand-total">₱0</span>
+                    <span>GRAND TOTAL:</span> <span id="grand-total">₱0.00</span>
                 </div>
             </div>
             <br>
             <input type="text" id="c-name" placeholder="Full Name">
             <input type="tel" id="c-phone" placeholder="Phone Number">
             <textarea id="c-addr" placeholder="Address (include City/Province)" rows="2" oninput="updateCartUI()"></textarea>
-            <button class="checkout-btn" onclick="submitOrder()">SEND ORDER VIA MESSENGER</button> <!-- Changed text -->
+            <button class="checkout-btn" onclick="submitOrder()">SEND ORDER VIA MESSENGER</button>
             <p onclick="document.getElementById('cart-overlay').style.display='none'" style="cursor:pointer; margin-top:15px; font-size:0.65rem; color:#666;">BACK TO SHOP</p>
         </div>
     </div>
@@ -530,13 +533,12 @@
 
     <script>
         function updateCartUI() {
-            // Count total *quantities* in the bag for display, not just distinct items
             const totalItemsInBag = window.bag.reduce((sum, item) => sum + (item.qtyToBuy || 0), 0);
             document.getElementById('cart-count').innerText = totalItemsInBag;
 
             const sMsg = document.getElementById('shipping-msg');
             sMsg.className = ""; 
-            if(totalItemsInBag === 0) { // Use totalItemsInBag for shipping message logic
+            if(totalItemsInBag === 0) {
                 sMsg.innerText = "COLLECT TOTAL OF 3 BOTTLES FOR FREE SHIPPING";
                 sMsg.classList.add('msg-default');
             } else if(totalItemsInBag < 3) {
@@ -550,30 +552,29 @@
             const list = document.getElementById('cart-items'); list.innerHTML = "";
             let itemsTotal = 0; 
             window.bag.forEach((item, index) => {
-                itemsTotal += item.price; // item.price now reflects quantity for this item
+                itemsTotal += item.price;
                 list.innerHTML += `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <span style="flex:1; margin-right:5px;">${item.name} (x${item.qtyToBuy || 1})</span>
                     <div class="qty-controls">
                         <button class="qty-btn" onclick="removeFromBag(${index})">−</button>
-                        <span style="color:var(--amethyst); font-weight:bold; font-size:0.7rem;">₱${item.price.toFixed(2)}</span> <!-- Display total price for this item -->
+                        <span style="color:var(--amethyst); font-weight:bold; font-size:0.7rem;">₱${item.price.toFixed(2)}</span>
                         <button class="qty-btn" onclick="addToBag('${item.id}', null)">+</button>
                     </div>
                 </div>`;
             });
-            document.getElementById('items-total-ui').innerText = "ITEMS: ₱" + itemsTotal.toFixed(2); // Format to 2 decimal places
+            document.getElementById('items-total-ui').innerText = "ITEMS: ₱" + itemsTotal.toFixed(2);
 
             const addr = document.getElementById('c-addr').value;
             const shipUI = document.getElementById('ship-ui');
             const shipCostElem = document.getElementById('ship-cost');
-            // Check if address is entered and there are items in the bag (total quantity)
             if (addr.length > 3 && totalItemsInBag > 0) { 
                 shipUI.style.display = 'block';
                 const res = calculateShipping(addr);
-                shipCostElem.innerText = "₱" + res.fee.toFixed(2); // Format to 2 decimal places
+                shipCostElem.innerText = "₱" + res.fee.toFixed(2);
                 shipCostElem.style.color = res.fee === 0 ? "var(--green)" : "var(--orange)";
                 document.getElementById('ship-loc').innerText = "Detected: " + res.loc;
-                document.getElementById('grand-total').innerText = "₱" + (itemsTotal + res.fee).toFixed(2); // Format to 2 decimal places
+                document.getElementById('grand-total').innerText = "₱" + (itemsTotal + res.fee).toFixed(2);
             } else { shipUI.style.display = 'none'; }
         }
     </script>
