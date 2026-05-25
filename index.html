@@ -35,7 +35,7 @@
         window.bag = [];
         let currentFilter = 'all';
         let searchQuery = ''; 
-        let rawInventory = []; // Stores original product data from Firestore
+        let rawInventory = [];
 
         window.notify = (msg, type = 'default') => {
             const toast = document.getElementById('toast');
@@ -44,7 +44,6 @@
             setTimeout(() => { toast.className = "toast"; }, 4000);
         };
 
-        // FIXED: Pass the clicked button element explicitly
         window.setFilter = (gender, clickedBtn) => {
             currentFilter = gender;
             const btns = document.querySelectorAll('.filter-btn');
@@ -73,7 +72,8 @@
 
         window.requestRestock = (scentName) => {
             const msg = `Hi NYXEN! I'm interested in "${scentName}". Please let me know when this is back in stock. Thanks!`;
-            window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
+            // Using the Facebook Page username for Messenger link
+            window.location.href = `https://m.me/Nyxenofficial?text=${encodeURIComponent(msg)}`;
         };
 
         function renderProducts() {
@@ -117,7 +117,6 @@
         }
 
         window.calculateShipping = (address) => {
-            // Calculate total quantity of items in bag, not just number of distinct items
             const totalQtyInBag = window.bag.reduce((sum, item) => sum + (item.qtyToBuy || 1), 0);
             if (totalQtyInBag >= 3) return { fee: 0, loc: "FREE SHIPPING" };
             const clean = address.toLowerCase();
@@ -126,7 +125,6 @@
             return { fee: 125, loc: "Outside Negros" };
         };
 
-        // MODIFIED: Now handles quantities and updates existing items
         window.addToBag = async (productId, btn = null) => {
             const product = rawInventory.find(p => p.id === productId);
 
@@ -138,21 +136,17 @@
 
             const { name, price: unitPrice, img, id: productDocKey } = product; 
 
-            // Check if item already exists in bag
             const existingItemIndex = window.bag.findIndex(item => item.id === productDocKey);
 
             if (existingItemIndex > -1) {
-                // Item exists, increment quantity
                 window.bag[existingItemIndex].qtyToBuy = (window.bag[existingItemIndex].qtyToBuy || 1) + 1;
-                window.bag[existingItemIndex].price = unitPrice * window.bag[existingItemIndex].qtyToBuy; // Update total price for this item
+                window.bag[existingItemIndex].price = unitPrice * window.bag[existingItemIndex].qtyToBuy;
                 window.notify(`Added another ${name} to collections.`);
             } else {
-                // Item doesn't exist, add new one
-                window.bag.push({ name, price: unitPrice, img, id: productDocKey, qtyToBuy: 1 }); // Store unit price initially
+                window.bag.push({ name, price: unitPrice, img, id: productDocKey, qtyToBuy: 1 });
                 window.notify(`Added ${name} to collections.`);
             }
 
-            // Visual feedback (flyer animation) only for initial add from product grid
             if (btn) {
                 const imgId = `img-${name.replace(/\s+/g, '')}`;
                 const originalImg = document.getElementById(imgId);
@@ -166,20 +160,20 @@
                     flyer.classList.add('fly-item');
                     flyer.style.top = rect.top + 'px';
                     flyer.style.left = rect.left + 'px';
-                    flyer.style.width = '30px'; // Set a fixed smaller size for the flyer
+                    flyer.style.width = '30px';
                     flyer.style.height = '30px';
-                    flyer.style.borderRadius = '50%'; // Make it round if needed
+                    flyer.style.borderRadius = '50%';
                     flyer.style.objectFit = 'cover';
                     flyer.style.transition = 'all 0.8s cubic-bezier(0.42, 0, 0.58, 1)';
                     flyer.style.zIndex = '9999';
-                    flyer.style.position = 'fixed'; // Ensure it's fixed
+                    flyer.style.position = 'fixed';
                     document.body.appendChild(flyer);
 
                     requestAnimationFrame(() => {
-                        flyer.style.top = (cartRect.top + cartRect.height / 2 - 15) + 'px'; // Center with cart button vertically
-                        flyer.style.left = (cartRect.left + cartRect.width / 2 - 15) + 'px'; // Center with cart button horizontally
+                        flyer.style.top = (cartRect.top + cartRect.height / 2 - 15) + 'px';
+                        flyer.style.left = (cartRect.left + cartRect.width / 2 - 15) + 'px';
                         flyer.style.opacity = '0.3';
-                        flyer.style.transform = 'scale(0.1)'; // Shrink it
+                        flyer.style.transform = 'scale(0.1)';
                     });
 
                     setTimeout(() => {
@@ -200,21 +194,18 @@
             } catch(e){ console.log("Click tracking error:", e); }
         };
         
-        // MODIFIED: Now handles decrementing quantity or removing item
         window.removeFromBag = (index) => {
-            if (index < 0 || index >= window.bag.length) return; // Basic validation
+            if (index < 0 || index >= window.bag.length) return;
 
             const item = window.bag[index];
             const originalProduct = rawInventory.find(p => p.id === item.id);
 
             if (item.qtyToBuy > 1) {
                 item.qtyToBuy--;
-                // Recalculate item's total price based on its unit price and new quantity
                 if (originalProduct) {
                     item.price = originalProduct.price * item.qtyToBuy;
                 } else {
                     console.warn("Original product not found for price recalculation.");
-                    // Fallback to approximate if original product data is somehow missing
                     item.price = item.price - (item.price / (item.qtyToBuy + 1));
                 }
             } else {
@@ -295,8 +286,8 @@
                 
                 window.notify("Order submitted! Redirecting to Messenger...", 'success');
                 
-                // Direct redirection to Messenger, same behavior as support button
-                window.location.href = `https://m.me/296084720263105?text=${encodeURIComponent(msg)}`;
+                // --- MODIFIED: Changed Messenger page ID to username ---
+                window.location.href = `https://m.me/Nyxenofficial?text=${encodeURIComponent(msg)}`;
 
             } catch (e) {
                 console.error("Order submission error:", e);
@@ -388,7 +379,7 @@
         .logo { font-size: 2.5rem; font-weight: 200; letter-spacing: 8px; margin-bottom: 5px; text-shadow: 0 0 20px rgba(155, 89, 182, 0.3); }
         .tagline { color: var(--amethyst); font-size: 0.6rem; letter-spacing: 3px; text-transform: uppercase; opacity: 0.8; }
         
-        .fly-item { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; } /* Removed inline transition for better CSS control */
+        .fly-item { position: fixed; z-index: 9999; border-radius: 50%; object-fit: cover; pointer-events: none; }
 
         .filter-nav { display: flex; justify-content: center; gap: 8px; margin: 10px auto 20px; flex-wrap: wrap; max-width: 95%; }
         .filter-btn { background: none; border: 1px solid #222; color: #555; padding: 8px 12px; border-radius: 5px; font-size: 0.55rem; letter-spacing: 1px; cursor: pointer; transition: 0.3s; font-weight: bold; flex: 1; max-width: 120px; }
@@ -497,7 +488,8 @@
         </div>
     </header>
 
-    <a href="https://m.me/296084720263105" target="_blank" class="support-btn">
+    <!-- This "SUPPORT" button already uses the correct Messenger link for your page -->
+    <a href="https://m.me/Nyxenofficial" target="_blank" class="support-btn">
         <i class="fa-brands fa-facebook-messenger"></i>
         <span>SUPPORT</span>
     </a>
